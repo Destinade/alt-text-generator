@@ -10,6 +10,7 @@
     --error-color: #df313c;
 }
 
+/* Base Styles */
 body {
     font-family: 'Roboto', sans-serif;
     background-color: var(--background-color);
@@ -20,8 +21,11 @@ body {
     min-height: 100vh;
     display: flex;
     flex-direction: column;
+    overflow-x: hidden;
+    width: 100%;
 }
 
+/* Header */
 .banner {
     background-color: var(--primary-color);
     color: white;
@@ -35,11 +39,13 @@ body {
     width: auto;
 }
 
+/* Main Content */
 .content {
-    flex-grow: 1;
-    padding: 2rem;
+    width: 100%;
     max-width: 1200px;
     margin: 0 auto;
+    padding: 2rem;
+    box-sizing: border-box;
 }
 
 .warning {
@@ -63,150 +69,7 @@ h2 {
     margin-bottom: 1rem;
 }
 
-.sections-wrapper {
-    display: flex;
-    justify-content: space-between;
-    align-items: stretch;
-    gap: 1rem;
-}
-
-.section {
-    background-color: white;
-    border-radius: 8px;
-    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
-    padding: 1.5rem;
-    flex: 1;
-    min-width: 0;
-    display: flex;
-    flex-direction: column;
-}
-
-.section-divider {
-    display: flex;
-    flex-direction: column;
-    justify-content: center;
-    align-items: center;
-    padding: 0.5rem;
-}
-
-.arrow {
-    width: 0;
-    height: 0;
-    border-left: 15px solid transparent;
-    border-right: 15px solid transparent;
-    border-top: 15px solid var(--secondary-color);
-}
-
-.export-section {
-    border-top: 4px solid var(--primary-color);
-}
-
-.import-section {
-    border-top: 4px solid var(--accent-color);
-}
-
-form {
-    display: flex;
-    flex-direction: column;
-    gap: 0.5rem;
-}
-
-label {
-    font-weight: bold;
-    color: var(--secondary-color);
-}
-
-input, select {
-    padding: 0.75rem;
-    border: 1px solid var(--light-accent-color);
-    border-radius: 4px;
-    font-size: 1rem;
-    transition: border-color 0.3s ease;
-}
-
-input:focus, select:focus {
-    outline: none;
-    border-color: var(--accent-color);
-    box-shadow: 0 0 0 2px rgba(42, 174, 255, 0.2);
-}
-
-button {
-    margin-top: 1rem;
-    padding: 0.75rem;
-    background-color: var(--primary-color);
-    color: white;
-    border: none;
-    border-radius: 4px;
-    font-size: 1rem;
-    cursor: pointer;
-    transition: background-color 0.3s ease, transform 0.1s ease;
-}
-
-button:hover:not(:disabled) {
-    background-color: var(--secondary-color);
-}
-
-button:active:not(:disabled) {
-    transform: scale(0.98);
-}
-
-button:disabled {
-    background-color: var(--light-accent-color);
-    cursor: not-allowed;
-}
-
-#exportResult, #importResult {
-    margin-top: 1.5rem;
-    font-weight: bold;
-    text-align: center;
-    padding: 1rem;
-    border-radius: 4px;
-    opacity: 0;
-    transition: opacity 0.3s ease;
-}
-
-.success {
-    background-color: var(--success-color);
-    color: white;
-}
-
-.error {
-    background-color: var(--error-color);
-    color: white;
-}
-
-#exportActions {
-    margin-top: 1rem;
-    display: flex;
-    gap: 1rem;
-}
-
-#exportActions button {
-    flex: 1;
-}
-
-@keyframes shake {
-    0%, 100% { transform: translateX(0); }
-    25% { transform: translateX(-5px); }
-    75% { transform: translateX(5px); }
-}
-
-.shake {
-    animation: shake 0.4s ease-in-out;
-}
-
-/* Responsive design for smaller screens */
-@media (max-width: 768px) {
-    .sections-wrapper {
-        flex-direction: column;
-    }
-
-    .section-divider {
-        transform: rotate(90deg);
-        padding: 2rem 0;
-    }
-}
-
+/* Process Flow */
 .process-flow {
     display: flex;
     justify-content: space-between;
@@ -263,7 +126,133 @@ button:disabled {
     border-bottom: 5px solid transparent;
 }
 
-/* Responsive design for smaller screens */
+/* Sections Layout */
+.sections-wrapper {
+    display: flex;
+    justify-content: space-between;
+    align-items: stretch;
+    gap: 1rem;
+}
+
+.section {
+    background-color: white;
+    border-radius: 8px;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+    padding: 1.5rem;
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+}
+
+.section-divider {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    padding: 0.5rem;
+}
+
+.arrow {
+    width: 0;
+    height: 0;
+    border-left: 15px solid transparent;
+    border-right: 15px solid transparent;
+    border-top: 15px solid var(--secondary-color);
+}
+
+.export-section {
+    border-top: 4px solid var(--primary-color);
+}
+
+.editor-section {
+    border-top: 4px solid var(--secondary-color);
+}
+
+.import-section {
+    border-top: 4px solid var(--accent-color);
+}
+
+.editor-note {
+    background-color: var(--background-color);
+    padding: 1rem;
+    border-radius: 4px;
+    margin-top: 1rem;
+}
+
+/* Forms */
+form {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+}
+
+label {
+    font-weight: bold;
+    color: var(--secondary-color);
+}
+
+input {
+    padding: 0.75rem;
+    border: 1px solid var(--light-accent-color);
+    border-radius: 4px;
+    font-size: 1rem;
+    transition: border-color 0.3s ease;
+}
+
+input:focus {
+    outline: none;
+    border-color: var(--accent-color);
+    box-shadow: 0 0 0 2px rgba(42, 174, 255, 0.2);
+}
+
+button {
+    margin-top: 1rem;
+    padding: 0.75rem;
+    background-color: var(--primary-color);
+    color: white;
+    border: none;
+    border-radius: 4px;
+    font-size: 1rem;
+    cursor: pointer;
+    transition: background-color 0.3s ease, transform 0.1s ease;
+}
+
+button:hover:not(:disabled) {
+    background-color: var(--secondary-color);
+}
+
+button:active:not(:disabled) {
+    transform: scale(0.98);
+}
+
+button:disabled {
+    background-color: var(--light-accent-color);
+    cursor: not-allowed;
+}
+
+/* Results and Actions */
+#exportResult, #importResult {
+    margin-top: 1.5rem;
+    font-weight: bold;
+    text-align: center;
+    padding: 1rem;
+    border-radius: 4px;
+    opacity: 0;
+    transition: opacity 0.3s ease;
+}
+
+#exportActions {
+    margin-top: 1rem;
+    display: flex;
+    gap: 1rem;
+}
+
+#exportActions button {
+    flex: 1;
+}
+
+/* Responsive Design */
 @media (max-width: 1024px) {
     .sections-wrapper {
         flex-direction: column;

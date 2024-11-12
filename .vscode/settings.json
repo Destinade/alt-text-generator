@@ -31,5 +31,8 @@
 	"css.format.spaceAroundSelectorSeparator": true,
 	"scss.lint.float": "warning",
 	"scss.lint.important": "warning",
-	"scss.format.spaceAroundSelectorSeparator": true
+	"scss.format.spaceAroundSelectorSeparator": true,
+	"[javascript]": {
+		"editor.defaultFormatter": "esbenp.prettier-vscode"
+	}
 }
