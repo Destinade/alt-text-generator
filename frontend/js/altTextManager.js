@@ -27,8 +27,11 @@ const ExcelGenerator = {
 		});
 
 		// Add headers
-		const headers = ["Image Source", "Generated Alt Text", "Edited Alt Text"];
-		worksheet.getRow(7).values = headers;
+		worksheet.getRow(7).values = [
+			"Image Source",
+			"Generated Alt Text",
+			"Edited Alt Text",
+		];
 		worksheet.getRow(7).font = { bold: true };
 		worksheet.getRow(7).fill = {
 			type: "pattern",
@@ -41,8 +44,6 @@ const ExcelGenerator = {
 			const row = worksheet.getRow(index + 8);
 			row.values = [img.src, img.altText, ""]; // Empty column for edited text
 			row.height = 60; // Taller rows for content
-
-			// Word wrap for all cells in the row
 			row.alignment = { wrapText: true, vertical: "top" };
 		});
 
@@ -50,14 +51,6 @@ const ExcelGenerator = {
 		worksheet.getColumn("A").width = 40; // Image source
 		worksheet.getColumn("B").width = 50; // Generated alt text
 		worksheet.getColumn("C").width = 50; // Edited alt text
-
-		// Add instructions
-		const lastRow = worksheet.lastRow.number + 2;
-		worksheet.mergeCells(`A${lastRow}:C${lastRow}`);
-		const instructionCell = worksheet.getCell(`A${lastRow}`);
-		instructionCell.value =
-			'Instructions: Please review the generated alt text and provide edited versions in the "Edited Alt Text" column.';
-		instructionCell.font = { italic: true, color: { argb: "FF666666" } };
 
 		// Generate blob
 		const buffer = await workbook.xlsx.writeBuffer();
@@ -67,114 +60,175 @@ const ExcelGenerator = {
 	},
 };
 
-// HTML Generator Module
-const HTMLGenerator = {
-	generateBlob(data) {
-		console.log("Generating HTML with data:", data);
-		const content = this.generateContent(data);
-		return new Blob([content], { type: "text/html" });
-	},
+// PDF Generator Module
+const PDFGenerator = {
+	async generateBlob(data) {
+		const { jsPDF } = window.jspdf;
+		const doc = new jsPDF({
+			orientation: "portrait",
+			unit: "mm",
+			format: "a4",
+		});
 
-	generateContent(data) {
-		return `
-			<!DOCTYPE html>
-			<html>
-			<head>
-				<title>Alt Text Preview - ${data.data.loId}</title>
-				<style>
-					body { 
-						font-family: Arial, sans-serif; 
-						margin: 20px; 
-						line-height: 1.6;
-						color: #333;
-					}
-					.metadata {
-						background: #f5f5f5;
-						padding: 20px;
-						border-radius: 8px;
-						margin-bottom: 30px;
-					}
-					.image-container { 
-						margin-bottom: 40px;
-						border: 1px solid #ddd;
-						padding: 20px;
-						border-radius: 8px;
-						background: white;
-					}
-					img { 
-						max-width: 100%; 
-						height: auto;
-						display: block;
-						margin: 0 auto;
-						border: 1px solid #eee;
-					}
-					.alt-text { 
-						margin-top: 15px; 
-						padding: 15px; 
-						background: #f8f8f8;
-						border-left: 4px solid #007bff;
-					}
-					h1 {
-						color: #2c3e50;
-						border-bottom: 2px solid #eee;
-						padding-bottom: 10px;
-					}
-					.metadata p {
-						margin: 5px 0;
-					}
-					.image-number {
-						font-weight: bold;
-						color: #007bff;
-						margin-bottom: 10px;
-					}
-				</style>
-			</head>
-			<body>
-				<h1>Alt Text Preview</h1>
-				<div class="metadata">
-					<p><strong>LO ID:</strong> ${data.data.loId}</p>
-					<p><strong>Grade Level:</strong> ${data.data.gradeLevel}</p>
-					<p><strong>Link:</strong> ${data.data.relativeLink}</p>
-				</div>
-				<div class="images">
-					${data.data.images
-						.map(
-							(img, index) => `
-						<div class="image-container">
-							<div class="image-number">Image ${index + 1}</div>
-							<img 
-								src="${img.imageData || "data:image/jpeg;base64,/9j/4AAQSkZJRg=="}" 
-								alt="${img.altText}"
-							>
-							<div class="alt-text">
-								<strong>Alt Text:</strong> ${img.altText}
-							</div>
-							<div class="image-path">
-								<small><strong>Original Path:</strong> ${img.src}</small>
-							</div>
-						</div>
-					`
-						)
-						.join("")}
-				</div>
-			</body>
-			</html>
-		`;
+		doc.setProperties({
+			title: `Alt Text Report - ${data.data.loId}`,
+			subject: "Alt Text Generation Report",
+			author: "Nelson Alt Text Generator",
+			keywords: "alt text, accessibility",
+			creator: "Nelson Education Ltd.",
+		});
+
+		doc.setFillColor(26, 54, 93); // Primary color #1A365D
+		doc.rect(0, 0, 210, 30, "F");
+		doc.setTextColor(255, 255, 255);
+
+		doc.setFontSize(24);
+		doc.text("Alt Text Preview", 15, 20);
+
+		doc.setTextColor(0, 0, 0);
+		doc.setFontSize(12);
+		doc.text(
+			[
+				`LO ID: ${data.data.loId}`,
+				`Grade Level: ${data.data.gradeLevel}`,
+				`Link: ${data.data.relativeLink}`,
+			],
+			15,
+			45
+		);
+
+		let yPosition = 70;
+
+		for (let i = 0; i < data.data.images.length; i++) {
+			const img = data.data.images[i];
+
+			doc.setFillColor(44, 82, 130); // Secondary color #2C5282
+			doc.rect(15, yPosition, 180, 10, "F");
+			doc.setTextColor(255, 255, 255);
+			doc.text(`Image ${i + 1}`, 20, yPosition + 7);
+
+			yPosition += 15;
+
+			try {
+				const imgWidth = 160;
+				const imgHeight = 90;
+				doc.addImage(
+					img.imageData,
+					"JPEG",
+					25,
+					yPosition,
+					imgWidth,
+					imgHeight,
+					undefined,
+					"MEDIUM" // compression
+				);
+
+				yPosition += imgHeight + 10;
+
+				doc.setTextColor(0, 0, 0);
+				doc.setFontSize(11);
+				doc.setFont(undefined, "bold");
+				doc.text("Generated Alt Text:", 15, yPosition);
+				doc.setFont(undefined, "normal");
+
+				const altTextLines = doc.splitTextToSize(img.altText, 180);
+				doc.text(altTextLines, 15, yPosition + 7);
+
+				yPosition += altTextLines.length * 7 + 15;
+
+				doc.setFontSize(9);
+				doc.setTextColor(100);
+				doc.text(`Source: ${img.src}`, 15, yPosition);
+
+				yPosition += 20;
+
+				if (yPosition > 250) {
+					doc.addPage();
+					yPosition = 20;
+				}
+			} catch (error) {
+				console.error(`Error adding image ${i + 1}:`, error);
+				doc.text("Error loading image", 25, yPosition);
+				yPosition += 20;
+			}
+		}
+
+		// Footer function to add to each page
+		const addFooter = (pageNumber, totalPages) => {
+			// Save current state
+			doc.saveGraphicsState();
+
+			// Add subtle footer line
+			doc.setDrawColor(200, 200, 200);
+			doc.line(15, 275, 195, 275);
+
+			// Footer text
+			doc.setFontSize(8);
+			doc.setTextColor(100);
+
+			// Left side - Copyright
+			doc.setFont(undefined, "normal");
+			doc.text(
+				`© ${new Date().getFullYear()} Nelson Education Ltd. All rights reserved.`,
+				15,
+				282
+			);
+
+			// Right side - Page numbers
+			doc.text(`Page ${pageNumber} of ${totalPages}`, 195, 282, {
+				align: "right",
+			});
+
+			// Restore state
+			doc.restoreGraphicsState();
+		};
+
+		// Add footer to each page
+		const pageCount = doc.getNumberOfPages();
+		for (let i = 1; i <= pageCount; i++) {
+			doc.setPage(i);
+			addFooter(i, pageCount);
+		}
+
+		// Set document properties
+		doc.setProperties({
+			title: `Alt Text Report - ${data.data.loId}`,
+			subject: "Alt Text Generation Report",
+			author: "Nelson Education Ltd.",
+			keywords: "alt text, accessibility",
+			creator: "Nelson Alt Text Generator",
+			producer: "Nelson Education Ltd.",
+			creationDate: new Date(),
+		});
+
+		return new Blob([doc.output("blob")], {
+			type: "application/pdf",
+		});
 	},
 };
 
 // File Downloader Module
 const FileDownloader = {
-	download(blob, filename) {
-		console.log("Downloading file:", filename);
-		const url = URL.createObjectURL(blob);
-		const link = document.createElement("a");
-		link.href = url;
-		link.download = filename;
-		document.body.appendChild(link);
-		link.click();
-		document.body.removeChild(link);
-		URL.revokeObjectURL(url);
+	async download(blob, filename) {
+		console.log("Downloading file:", filename, "Blob type:", blob.type);
+
+		try {
+			if (!(blob instanceof Blob)) {
+				throw new Error("Invalid blob object");
+			}
+
+			const url = URL.createObjectURL(blob);
+			const link = document.createElement("a");
+			link.href = url;
+			link.download = filename;
+			document.body.appendChild(link);
+			link.click();
+			document.body.removeChild(link);
+			URL.revokeObjectURL(url);
+		} catch (error) {
+			console.error("Download error:", error);
+			throw new Error(`Failed to download ${filename}: ${error.message}`);
+		}
 	},
 
 	getTimestamp() {
@@ -202,6 +256,9 @@ const UIHandler = {
 			"click",
 			this.handleEmail.bind(this)
 		);
+		this.elements.importForm.addEventListener("submit", (e) => {
+			ImportHandler.handleImport(e);
+		});
 	},
 
 	async handleSubmit(e) {
@@ -252,20 +309,20 @@ const UIHandler = {
 
 		try {
 			console.log("Starting download with data:", this.data);
-
-			// Generate Excel file
-			const excelBlob = await ExcelGenerator.generateBlob(this.data);
 			const timestamp = FileDownloader.getTimestamp();
-			FileDownloader.download(
+
+			// Generate and download Excel file
+			const excelBlob = await ExcelGenerator.generateBlob(this.data);
+			await FileDownloader.download(
 				excelBlob,
 				`alt-text-${this.data.data.loId}-${timestamp}.xlsx`
 			);
 
-			// Generate HTML preview
-			const htmlBlob = HTMLGenerator.generateBlob(this.data);
-			FileDownloader.download(
-				htmlBlob,
-				`alt-text-preview-${this.data.data.loId}-${timestamp}.html`
+			// Generate and download PDF preview
+			const pdfBlob = await PDFGenerator.generateBlob(this.data);
+			await FileDownloader.download(
+				pdfBlob,
+				`alt-text-preview-${this.data.data.loId}-${timestamp}.pdf`
 			);
 
 			this.updateUI({
@@ -327,6 +384,134 @@ const UIHandler = {
 			: "none";
 		this.elements.downloadBtn.disabled = !state.enableButtons;
 		this.elements.emailBtn.disabled = !state.enableButtons;
+	},
+};
+
+const ImportHandler = {
+	// Dummy data for import demonstration
+	dummyImportData: [
+		{
+			title: "graph_population_growth.jpg",
+			status: "OK",
+			location: "/content/grade10/unit3/images/",
+		},
+		{
+			title: "chemical_reaction_diagram.png",
+			status: "OK",
+			location: "/content/grade10/unit4/images/",
+		},
+		{
+			title: "historical_map_1800.jpg",
+			status: "Location not found",
+			location: "/content/grade10/unit2/archived/",
+		},
+		{
+			title: "math_equation_quadratic.svg",
+			status: "OK",
+			location: "/content/grade10/unit5/images/",
+		},
+		{
+			title: "biology_cell_structure.png",
+			status: "Location not found",
+			location: "/content/grade10/removed/images/",
+		},
+	],
+
+	handleImport(e) {
+		e.preventDefault();
+		const importResult = document.getElementById("importResult");
+
+		// Get all sections
+		const exportSection = document.querySelector(".export-section");
+		const editorSection = document.querySelector(".editor-section");
+		const importSection = document.querySelector(".section.import-section");
+		const dividers = document.querySelectorAll(".section-divider");
+
+		// Minimize export and editor sections
+		exportSection.classList.add("minimized");
+		editorSection.classList.add("minimized");
+
+		// Expand import section
+		importSection.classList.add("expanded");
+
+		// Fade dividers
+		dividers.forEach((divider) => divider.classList.add("fade"));
+
+		// Show loading state
+		importResult.innerHTML = '<div class="loading">Processing import...</div>';
+
+		// Simulate API delay
+		setTimeout(() => {
+			importResult.innerHTML = this.generateImportTable();
+
+			// Add reset button
+			const resetButton = document.createElement("button");
+			resetButton.className = "reset-view-btn";
+			resetButton.textContent = "Reset View";
+			resetButton.onclick = this.resetView;
+			importResult.appendChild(resetButton);
+		}, 1500);
+	},
+
+	resetView() {
+		// Reset all sections
+		const sections = document.querySelectorAll(".section");
+		const dividers = document.querySelectorAll(".section-divider");
+
+		sections.forEach((section) => {
+			section.classList.remove("minimized", "expanded");
+		});
+
+		dividers.forEach((divider) => divider.classList.remove("fade"));
+
+		// Clear import results
+		document.getElementById("importResult").innerHTML = "";
+	},
+
+	generateImportTable() {
+		return `
+			<div class="import-results">
+				<h3>Import Results</h3>
+				<table class="import-table">
+					<thead>
+						<tr>
+							<th>Image Title</th>
+							<th>Status</th>
+							<th>Location</th>
+						</tr>
+					</thead>
+					<tbody>
+						${this.dummyImportData
+							.map(
+								(item) => `
+							<tr class="${item.status === "OK" ? "status-ok" : "status-error"}">
+								<td>${item.title}</td>
+								<td>
+									<span class="status-badge ${item.status === "OK" ? "badge-ok" : "badge-error"}">
+										${item.status}
+									</span>
+								</td>
+								<td>${item.location}</td>
+							</tr>
+						`
+							)
+							.join("")}
+					</tbody>
+					<tfoot>
+						<tr>
+							<td colspan="3">
+								Total: ${this.dummyImportData.length} images | 
+								Success: ${
+									this.dummyImportData.filter((item) => item.status === "OK")
+										.length
+								} | 
+								Failed: ${this.dummyImportData.filter((item) => item.status !== "OK").length}
+							</td>
+						</tr>
+					</tfoot>
+				</table>
+			</div>
+		`;
 	},
 };
 

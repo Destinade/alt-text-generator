@@ -7,6 +7,8 @@
 	<link href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;700&display=swap" rel="stylesheet">
 	<link rel="stylesheet" href="css/styles.css">
 	<script src="https://cdn.jsdelivr.net/npm/exceljs@4.3.0/dist/exceljs.min.js"></script>
+	<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+	<script src="https://cdnjs.cloudflare.com/ajax/libs/exceljs/4.3.0/exceljs.min.js"></script>
 </head>
 <body>
 	<div class="banner">
@@ -65,9 +67,8 @@
 			<div class="section import-section">
 				<h2>3. Import and Apply Alt Text</h2>
 				<form id="importForm">
-					<label for="importFile">Import Edited File:</label>
-					<input type="file" id="importFile" name="importFile" accept=".json,.csv" required>
-					<button type="submit">Import and Apply</button>
+					<input type="file" id="importFile" accept=".xlsx,.json" />
+					<button type="submit">Import Alt Text</button>
 				</form>
 				<div id="importResult"></div>
 			</div>

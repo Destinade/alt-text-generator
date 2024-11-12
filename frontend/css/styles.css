@@ -143,6 +143,7 @@ h2 {
     min-width: 0;
     display: flex;
     flex-direction: column;
+    transition: all 0.5s ease-in-out;
 }
 
 .section-divider {
@@ -151,6 +152,12 @@ h2 {
     justify-content: center;
     align-items: center;
     padding: 0.5rem;
+    transition: all 0.5s ease-in-out;
+}
+
+.section-divider.fade {
+    opacity: 0.3;
+    transform: scale(0.9);
 }
 
 .arrow {
@@ -282,4 +289,114 @@ button:disabled {
         border-right: 5px solid transparent;
         border-top: 5px solid var(--light-accent-color);
     }
+}
+
+.import-results {
+    margin-top: 20px;
+    padding: 20px;
+    background: white;
+    border-radius: 8px;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    opacity: 0;
+    transform: translateY(20px);
+    animation: slideIn 0.5s ease forwards;
+}
+
+@keyframes slideIn {
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+#importResult {
+    margin-top: 1.5rem;
+    opacity: 1;
+    transition: opacity 0.3s ease;
+}
+
+.import-table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-bottom: 15px;
+    font-size: 14px;
+}
+
+.import-table th,
+.import-table td {
+    padding: 12px;
+    text-align: left;
+    border-bottom: 1px solid #e2e8f0;
+}
+
+.import-table th {
+    background: #f7fafc;
+    font-weight: 600;
+    color: #2d3748;
+}
+
+.status-badge {
+    padding: 4px 8px;
+    border-radius: 4px;
+    font-size: 12px;
+    font-weight: 500;
+}
+
+.badge-ok {
+    background: #c6f6d5;
+    color: #2f855a;
+}
+
+.badge-error {
+    background: #fed7d7;
+    color: #c53030;
+}
+
+.status-ok {
+    background: #f0fff4;
+}
+
+.status-error {
+    background: #fff5f5;
+}
+
+.import-table tfoot td {
+    padding: 15px;
+    background: #f7fafc;
+    font-weight: 500;
+    color: #4a5568;
+}
+
+.loading {
+    padding: 20px;
+    text-align: center;
+    padding: 20px;
+    color: #4a5568;
+}
+
+/* Animation for loading state */
+@keyframes pulse {
+    0% { opacity: 0.6; }
+    50% { opacity: 1; }
+    100% { opacity: 0.6; }
+}
+
+.loading {
+    animation: pulse 1.5s infinite;
+}
+
+/* Minimized state */
+.section.minimized {
+    flex: 0.2;
+    opacity: 0.6;
+    transform: scale(0.9);
+    pointer-events: none; /* Disable interactions when minimized */
+}
+
+/* Expanded state */
+.section.expanded {
+    flex: 2.5;
+    transform: scale(1.02);
+    box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+    z-index: 10;
 }
