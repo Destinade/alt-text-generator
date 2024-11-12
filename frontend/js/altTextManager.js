@@ -110,20 +110,15 @@ const PDFGenerator = {
 			yPosition += 15;
 
 			try {
-				const imgWidth = 160;
-				const imgHeight = 90;
-				doc.addImage(
-					img.imageData,
-					"JPEG",
-					25,
-					yPosition,
-					imgWidth,
-					imgHeight,
-					undefined,
-					"MEDIUM" // compression
-				);
-
-				yPosition += imgHeight + 10;
+				if (img.imageData) {
+					const imgData = img.imageData.split(",")[1]; // Remove the data URL prefix
+					doc.addImage(imgData, "JPEG", 25, yPosition, 160, 90);
+					yPosition += 100;
+				} else {
+					console.error(`No image data for ${img.src}`);
+					doc.text(`Image data not available for ${img.src}`, 25, yPosition);
+					yPosition += 20;
+				}
 
 				doc.setTextColor(0, 0, 0);
 				doc.setFontSize(11);
@@ -148,7 +143,7 @@ const PDFGenerator = {
 				}
 			} catch (error) {
 				console.error(`Error adding image ${i + 1}:`, error);
-				doc.text("Error loading image", 25, yPosition);
+				doc.text(`Error loading image: ${img.src}`, 25, yPosition);
 				yPosition += 20;
 			}
 		}
@@ -266,9 +261,8 @@ const UIHandler = {
 		const formData = new FormData(this.elements.exportForm);
 
 		try {
-			console.log("Sending form data:", Object.fromEntries(formData));
 			const response = await fetch(
-				"https://alt-text-generator-dusky.vercel.app/api/export-alt-text",
+				"http://localhost:3000/api/export-alt-text",
 				{
 					method: "POST",
 					headers: {
@@ -279,17 +273,19 @@ const UIHandler = {
 				}
 			);
 
-			if (!response.ok) {
-				const errorData = await response.json();
-				throw new Error(errorData.error || "Network response was not ok");
+			const data = await response.json();
+
+			if (!response.ok || data.data.failedImages.length > 0) {
+				throw new Error(data.message || "Some images failed to process");
 			}
 
-			this.data = await response.json();
+			this.data = data;
 			this.updateUI({
 				message: "Alt text generated successfully!",
 				status: "success",
 				showActions: true,
 				enableButtons: true,
+				data: data.data,
 			});
 		} catch (error) {
 			console.error("Error:", error);
@@ -298,6 +294,7 @@ const UIHandler = {
 				status: "error",
 				showActions: false,
 				enableButtons: false,
+				data: error.data || {},
 			});
 		}
 	},
@@ -347,17 +344,14 @@ const UIHandler = {
 		if (!this.data) return;
 
 		try {
-			const response = await fetch(
-				"https://alt-text-generator-dusky.vercel.app/api/email-alt-text",
-				{
-					method: "POST",
-					headers: {
-						"Content-Type": "application/json",
-					},
-					credentials: "include",
-					body: JSON.stringify(this.data),
-				}
-			);
+			const response = await fetch("http://localhost:3000/api/email-alt-text", {
+				method: "POST",
+				headers: {
+					"Content-Type": "application/json",
+				},
+				credentials: "include",
+				body: JSON.stringify(this.data),
+			});
 
 			if (!response.ok) {
 				throw new Error("Failed to send email");
@@ -381,12 +375,47 @@ const UIHandler = {
 	},
 
 	updateUI(state) {
-		this.elements.exportResult.textContent = state.message;
-		this.elements.exportResult.className = state.status;
+		this.elements.exportResult.innerHTML = `
+			<div class="result-summary ${state.status}">
+				<h3>${state.message}</h3>
+				${
+					state.data
+						? `
+					<div class="stats">
+						<p>Total images: ${state.data.stats.total}</p>
+						<p>Successfully processed: ${state.data.stats.successful}</p>
+						<p>Failed: ${state.data.stats.failed}</p>
+					</div>
+					${
+						state.data.failedImages.length > 0
+							? `
+						<div class="failed-images">
+							<h4>Failed Images:</h4>
+							<ul>
+								${state.data.failedImages
+									.map(
+										(img) => `
+									<li>
+										${img.src}
+										<span class="error-message">${img.error}</span>
+									</li>
+								`
+									)
+									.join("")}
+							</ul>
+						</div>
+					`
+							: ""
+					}
+				`
+						: ""
+				}
+			</div>
+		`;
+
 		this.elements.exportResult.style.opacity = "1";
-		this.elements.exportActions.style.display = state.showActions
-			? "flex"
-			: "none";
+		this.elements.exportActions.style.display =
+			state.showActions && state.data?.stats.successful > 0 ? "flex" : "none";
 		this.elements.downloadBtn.disabled = !state.enableButtons;
 		this.elements.emailBtn.disabled = !state.enableButtons;
 	},

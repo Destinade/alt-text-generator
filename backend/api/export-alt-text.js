@@ -4,14 +4,23 @@ import dotenv from "dotenv";
 dotenv.config();
 
 export default async function handler(req, res) {
-	console.log("API Handler Started - Method:", req.method);
-	console.log("Raw Request:", req);
-	console.log("Headers:", req.headers);
+	// console.log("API Handler Started - Method:", req.method);
+	// console.log("Raw Request:", req);
 
-	res.setHeader(
-		"Access-Control-Allow-Origin",
-		"https://edwincontent.nelsontechdev.com"
-	);
+	const allowedOrigins = [
+		"https://edwincontent.nelsontechdev.com",
+		"http://localhost:3000",
+		"http://localhost:5000",
+		"http://localhost:5500",
+		"http://localhost:8000",
+		"http://localhost",
+	];
+
+	const origin = req.headers.origin;
+	if (allowedOrigins.includes(origin)) {
+		res.setHeader("Access-Control-Allow-Origin", origin);
+	}
+
 	res.setHeader("Access-Control-Allow-Methods", "POST, OPTIONS");
 	res.setHeader("Access-Control-Allow-Headers", "Content-Type, Origin");
 	res.setHeader("Access-Control-Allow-Credentials", "true");
@@ -80,78 +89,155 @@ export default async function handler(req, res) {
 			const imgTags = [
 				...htmlContent.matchAll(/<img\s+[^>]*src="([^"]+)"[^>]*>/g),
 			];
-			const uniqueImgTags = imgTags.filter(
-				(tag, index, self) => index === self.findIndex((t) => t[1] === tag[1])
-			);
+			const uniqueImgTags = imgTags
+				.map((match) => match[1])
+				.filter((src, index, self) => index === self.indexOf(src));
 			console.log("Found unique images:", uniqueImgTags.length);
 
-			const processedImages = [];
-			for (const [index, [fullTag, imgSrc]] of uniqueImgTags.entries()) {
-				console.log(`Processing image ${index + 1}/${uniqueImgTags.length}`);
-				console.log("Image src:", imgSrc);
+			const BATCH_SIZE = 1; // Number of images to process at a time
 
-				const dirPath = relativePath.substring(
-					0,
-					relativePath.lastIndexOf("/")
-				);
-				const fullImagePath = `${dirPath}/${imgSrc}`;
-				console.log("Full image path:", fullImagePath);
+			async function processImagesInBatches(images) {
+				const processedImages = [];
+				const failedImages = [];
 
-				console.log("Fetching image from S3...");
-				const imageResponse = await s3Client.send(
-					new GetObjectCommand({
-						Bucket: "edwincontent",
-						Key: fullImagePath,
-					})
-				);
-
-				const imageBuffer = await imageResponse.Body.transformToByteArray();
-				console.log("Image buffer size:", imageBuffer.length);
-
-				const imageBase64 = Buffer.from(imageBuffer).toString("base64");
-				const mimeType = imageResponse.ContentType || "image/jpeg";
-				const imageDataUrl = `data:${mimeType};base64,${imageBase64}`;
-				console.log("Generated base64 data URL length:", imageDataUrl.length);
-
-				console.log("Calling Vision API...");
-				const visionResponse = await fetch(
-					"https://nellie-backend.vercel.app/vision",
-					{
-						method: "POST",
-						headers: {
-							"Content-Type": "text/plain",
-						},
-						body: imageDataUrl,
-					}
-				);
-
-				if (!visionResponse.ok) {
-					console.error("Vision API Error:", visionResponse.status);
-					throw new Error(
-						`Failed to generate alt text: ${visionResponse.status}`
+				for (let i = 0; i < images.length; i += BATCH_SIZE) {
+					const batch = images.slice(i, i + BATCH_SIZE);
+					const batchResults = await Promise.all(
+						batch.map(async (imgSrc) => {
+							try {
+								const result = await processImage(imgSrc);
+								return {
+									src: imgSrc,
+									altText: result.altText,
+									imageData: result.imageData,
+									status: "success",
+								};
+							} catch (error) {
+								console.error(`Failed to process image ${imgSrc}:`, error);
+								return { src: imgSrc, error: error.message, status: "error" };
+							}
+						})
 					);
+
+					batchResults.forEach((result) => {
+						if (result.status === "success") {
+							processedImages.push(result);
+						} else {
+							failedImages.push(result);
+						}
+					});
 				}
 
-				const result = await visionResponse.json();
-				console.log("Vision API response:", result);
-
-				processedImages.push({
-					src: imgSrc,
-					altText: result.altText,
-					imageData: imageDataUrl,
-				});
+				return { processedImages, failedImages };
 			}
 
-			console.log("All images processed successfully");
-			console.log("Processed images:", processedImages);
+			async function processImage(imgSrc) {
+				console.log(`Processing image ${imgSrc}`);
+				console.log("Image src:", imgSrc);
+				let fullImagePath;
+
+				try {
+					const dirPath = relativePath.substring(
+						0,
+						relativePath.lastIndexOf("/")
+					);
+					fullImagePath = `${dirPath}/${imgSrc}`;
+					console.log("Full image path:", fullImagePath);
+
+					console.log("Fetching image from S3...");
+					const imageResponse = await s3Client.send(
+						new GetObjectCommand({
+							Bucket: "edwincontent",
+							Key: fullImagePath,
+						})
+					);
+
+					const imageBuffer = await imageResponse.Body.transformToByteArray();
+					console.log("Image buffer size:", imageBuffer.length);
+
+					const imageBase64 = Buffer.from(imageBuffer).toString("base64");
+					const mimeType = imageResponse.ContentType || "image/jpeg";
+					const imageDataUrl = `data:${mimeType};base64,${imageBase64}`;
+
+					console.log("Calling Vision API...");
+					const controller = new AbortController();
+					const timeoutId = setTimeout(() => controller.abort(), 5000); // 5 seconds timeout
+
+					try {
+						const visionResponse = await fetch(
+							"https://nellie-backend.vercel.app/vision",
+							{
+								method: "POST",
+								headers: {
+									"Content-Type": "text/plain",
+								},
+								body: imageDataUrl,
+								signal: controller.signal,
+							}
+						);
+
+						clearTimeout(timeoutId);
+
+						const rawResponse = await visionResponse.text();
+						console.log("Raw Vision API response:", rawResponse);
+
+						if (!visionResponse.ok) {
+							throw new Error(`Vision API Error: ${visionResponse.status}`);
+						}
+
+						const result = JSON.parse(rawResponse);
+						console.log("Parsed Vision API response:", result);
+
+						return {
+							src: imgSrc,
+							altText: result.altText,
+							imageData: imageDataUrl,
+							status: "success",
+						};
+					} catch (error) {
+						if (error.name === "AbortError") {
+							console.error(`Vision API request timed out for image ${imgSrc}`);
+							return {
+								src: imgSrc,
+								error: "Vision API request timed out",
+								status: "error",
+								fullPath: fullImagePath,
+							};
+						}
+						throw error;
+					}
+				} catch (error) {
+					console.error(`Failed to process image ${imgSrc}:`, error);
+					return {
+						src: imgSrc,
+						error: error.message,
+						status: "error",
+						fullPath: fullImagePath || `${relativePath}/${imgSrc}`,
+					};
+				}
+			}
+
+			const { processedImages, failedImages } = await processImagesInBatches(
+				uniqueImgTags
+			);
+
+			console.log("All images processed");
+			console.log("Successful images:", processedImages.length);
+			console.log("Failed images:", failedImages.length);
 
 			res.status(200).json({
-				message: "Alt text generated successfully",
+				message: "Alt text generation complete",
 				data: {
 					loId,
 					relativeLink,
 					gradeLevel,
 					images: processedImages,
+					failedImages: failedImages,
+					stats: {
+						total: uniqueImgTags.length,
+						successful: processedImages.length,
+						failed: failedImages.length,
+					},
 				},
 			});
 		} catch (error) {
