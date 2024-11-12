@@ -268,12 +268,13 @@ const UIHandler = {
 		try {
 			console.log("Sending form data:", Object.fromEntries(formData));
 			const response = await fetch(
-				"http://localhost:3000/api/export-alt-text",
+				"https://alt-text-generator-dusky.vercel.app/api/export-alt-text",
 				{
 					method: "POST",
 					headers: {
 						"Content-Type": "application/json",
 					},
+					credentials: "include",
 					body: JSON.stringify(Object.fromEntries(formData)),
 				}
 			);
@@ -346,13 +347,17 @@ const UIHandler = {
 		if (!this.data) return;
 
 		try {
-			const response = await fetch("http://localhost:3000/api/email-alt-text", {
-				method: "POST",
-				headers: {
-					"Content-Type": "application/json",
-				},
-				body: JSON.stringify(this.data),
-			});
+			const response = await fetch(
+				"https://alt-text-generator-dusky.vercel.app/api/email-alt-text",
+				{
+					method: "POST",
+					headers: {
+						"Content-Type": "application/json",
+					},
+					credentials: "include",
+					body: JSON.stringify(this.data),
+				}
+			);
 
 			if (!response.ok) {
 				throw new Error("Failed to send email");
