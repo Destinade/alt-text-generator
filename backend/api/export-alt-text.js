@@ -94,46 +94,63 @@ export default async function handler(req, res) {
 				.filter((src, index, self) => index === self.indexOf(src));
 			console.log("Found unique images:", uniqueImgTags.length);
 
-			const BATCH_SIZE = 1; // Number of images to process at a time
+			const BATCH_SIZE = 5; // Increased batch size
+			const TIMEOUT_MS = 30000; // 30 second timeout
 
 			async function processImagesInBatches(images) {
 				const processedImages = [];
 				const failedImages = [];
 
+				// Split images into batches
+				const batches = [];
 				for (let i = 0; i < images.length; i += BATCH_SIZE) {
-					const batch = images.slice(i, i + BATCH_SIZE);
-					const batchResults = await Promise.all(
-						batch.map(async (imgSrc) => {
-							try {
-								const result = await processImage(imgSrc);
-								return {
-									src: imgSrc,
-									altText: result.altText,
-									imageData: result.imageData,
-									status: "success",
-								};
-							} catch (error) {
-								console.error(`Failed to process image ${imgSrc}:`, error);
-								return { src: imgSrc, error: error.message, status: "error" };
-							}
-						})
-					);
-
-					batchResults.forEach((result) => {
-						if (result.status === "success") {
-							processedImages.push(result);
-						} else {
-							failedImages.push(result);
-						}
-					});
+					batches.push(images.slice(i, i + BATCH_SIZE));
 				}
+
+				console.log(`Processing ${batches.length} batches of images...`);
+
+				// Process all batches in parallel with timeout
+				const batchPromises = batches.map(async (batch, batchIndex) => {
+					console.log(`Starting batch ${batchIndex + 1}/${batches.length}`);
+
+					try {
+						const batchResults = await Promise.race([
+							Promise.all(batch.map((imgSrc) => processImage(imgSrc))),
+							new Promise((_, reject) =>
+								setTimeout(() => reject(new Error("Batch timeout")), TIMEOUT_MS)
+							),
+						]);
+
+						console.log(`Batch ${batchIndex + 1} completed successfully`);
+						return batchResults;
+					} catch (error) {
+						console.error(`Batch ${batchIndex + 1} failed:`, error);
+						// Mark all images in failed batch
+						return batch.map((imgSrc) => ({
+							src: imgSrc,
+							error: error.message,
+							status: "error",
+						}));
+					}
+				});
+
+				// Wait for all batches to complete
+				const batchResults = await Promise.all(batchPromises);
+
+				// Flatten and sort results
+				batchResults.flat().forEach((result) => {
+					if (result.status === "success") {
+						processedImages.push(result);
+					} else {
+						failedImages.push(result);
+					}
+				});
 
 				return { processedImages, failedImages };
 			}
 
 			async function processImage(imgSrc) {
 				console.log(`Processing image ${imgSrc}`);
-				console.log("Image src:", imgSrc);
 				let fullImagePath;
 
 				try {
@@ -142,51 +159,34 @@ export default async function handler(req, res) {
 						relativePath.lastIndexOf("/")
 					);
 					fullImagePath = `${dirPath}/${imgSrc}`;
-					console.log("Full image path:", fullImagePath);
 
-					console.log("Fetching image from S3...");
-					const imageResponse = await s3Client.send(
-						new GetObjectCommand({
-							Bucket: "edwincontent",
-							Key: fullImagePath,
-						})
-					);
+					// Fetch image with timeout
+					const imageResponse = await Promise.race([
+						s3Client.send(
+							new GetObjectCommand({
+								Bucket: "edwincontent",
+								Key: fullImagePath,
+							})
+						),
+						new Promise((_, reject) =>
+							setTimeout(() => reject(new Error("S3 fetch timeout")), 10000)
+						),
+					]);
 
 					const imageBuffer = await imageResponse.Body.transformToByteArray();
-					console.log("Image buffer size:", imageBuffer.length);
-
 					const imageBase64 = Buffer.from(imageBuffer).toString("base64");
 					const mimeType = imageResponse.ContentType || "image/jpeg";
 					const imageDataUrl = `data:${mimeType};base64,${imageBase64}`;
 
-					console.log("Calling Vision API...");
-					const controller = new AbortController();
-					const timeoutId = setTimeout(() => controller.abort(), 5000); // 5 seconds timeout
-
+					// Vision API call with timeout
 					try {
-						const visionResponse = await fetch(
-							"https://nellie-backend.vercel.app/vision",
-							{
-								method: "POST",
-								headers: {
-									"Content-Type": "text/plain",
-								},
-								body: imageDataUrl,
-								signal: controller.signal,
-							}
-						);
-
-						clearTimeout(timeoutId);
-
-						const rawResponse = await visionResponse.text();
-						console.log("Raw Vision API response:", rawResponse);
-
-						if (!visionResponse.ok) {
-							throw new Error(`Vision API Error: ${visionResponse.status}`);
-						}
+						// TODO: Replace with actual Vision API call when back online
+						const rawResponse = JSON.stringify(`{
+							"success": true,
+							"altText": "A garden with raised wooden beds containing various herbs and vegetables."
+						}`);
 
 						const result = JSON.parse(rawResponse);
-						console.log("Parsed Vision API response:", result);
 
 						return {
 							src: imgSrc,
@@ -195,16 +195,7 @@ export default async function handler(req, res) {
 							status: "success",
 						};
 					} catch (error) {
-						if (error.name === "AbortError") {
-							console.error(`Vision API request timed out for image ${imgSrc}`);
-							return {
-								src: imgSrc,
-								error: "Vision API request timed out",
-								status: "error",
-								fullPath: fullImagePath,
-							};
-						}
-						throw error;
+						throw new Error(`Vision API Error: ${error.message}`);
 					}
 				} catch (error) {
 					console.error(`Failed to process image ${imgSrc}:`, error);
