@@ -54,11 +54,11 @@ export default async function handler(req, res) {
 
 			const { loId, relativeLink, gradeLevel } = formData;
 
-			if (!loId || !relativeLink || !gradeLevel) {
-				throw new Error(
-					"Missing required fields: loId, relativeLink, or gradeLevel"
-				);
-			}
+			// if (!loId || !relativeLink || !gradeLevel) {
+			// 	throw new Error(
+			// 		"Missing required fields: loId, relativeLink, or gradeLevel"
+			// 	);
+			// }
 
 			console.log("Parsed Parameters:", { loId, relativeLink, gradeLevel });
 
@@ -94,8 +94,8 @@ export default async function handler(req, res) {
 				.filter((src, index, self) => index === self.indexOf(src));
 			console.log("Found unique images:", uniqueImgTags.length);
 
-			const BATCH_SIZE = 5; // Increased batch size
-			const TIMEOUT_MS = 30000; // 30 second timeout
+			const BATCH_SIZE = 30000; // Increased batch size
+			const TIMEOUT_MS = 10000; // 10 second timeout
 
 			async function processImagesInBatches(images) {
 				const processedImages = [];
@@ -181,16 +181,15 @@ export default async function handler(req, res) {
 					// Vision API call with timeout
 					try {
 						// TODO: Replace with actual Vision API call when back online
-						const rawResponse = JSON.stringify(`{
-							"success": true,
-							"altText": "A garden with raised wooden beds containing various herbs and vegetables."
-						}`);
-
-						const result = JSON.parse(rawResponse);
+						const mockResponse = {
+							success: true,
+							altText:
+								"A garden with raised wooden beds containing various herbs and vegetables.",
+						};
 
 						return {
 							src: imgSrc,
-							altText: result.altText,
+							altText: mockResponse.altText,
 							imageData: imageDataUrl,
 							status: "success",
 						};
