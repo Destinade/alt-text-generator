@@ -182,21 +182,46 @@ export default async function handler(req, res) {
 
 					// Vision API call with timeout
 					try {
-						// TODO: Replace with actual Vision API call when back online
-						const mockResponse = {
-							success: true,
-							altText:
-								"A garden with raised wooden beds containing various herbs and vegetables.",
-						};
+						console.log("Calling Vision API...");
+						const controller = new AbortController();
+						const timeoutId = setTimeout(() => controller.abort(), 5000); // 5 seconds timeout
+
+						const visionResponse = await fetch(
+							"https://nellie-backend.vercel.app/vision",
+							{
+								method: "POST",
+								headers: {
+									"Content-Type": "text/plain",
+								},
+								body: imageDataUrl,
+								signal: controller.signal,
+							}
+						);
+
+						clearTimeout(timeoutId);
+
+						const rawResponse = await visionResponse.text();
+						console.log("Raw Vision API response:", rawResponse);
+
+						if (!visionResponse.ok) {
+							throw new Error(`Vision API Error: ${visionResponse.status}`);
+						}
+
+						const result = JSON.parse(rawResponse);
+						console.log("Parsed Vision API response:", result);
 
 						return {
 							src: imgSrc,
-							altText: mockResponse.altText,
+							altText: result.altText,
 							imageData: imageDataUrl,
 							status: "success",
 						};
 					} catch (error) {
-						throw new Error(`Vision API Error: ${error.message}`);
+						if (error.name === "AbortError") {
+							console.error(`Vision API request timed out for image ${imgSrc}`);
+							throw new Error("Vision API request timed out");
+						}
+						throw error;
 					}
 				} catch (error) {
 					console.error(`Failed to process image ${imgSrc}:`, error);

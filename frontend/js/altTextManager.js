@@ -33,7 +33,7 @@ const UIHandler = {
 
 		try {
 			const response = await fetch(
-				"http://localhost:3000/api/export-alt-text",
+				"https://syntarax.vercel.app/api/export-alt-text",
 				{
 					method: "POST",
 					headers: {
@@ -81,13 +81,16 @@ const UIHandler = {
 				JSON.stringify(this.data, null, 2)
 			);
 			console.log("Sending request to generate-files endpoint...");
-			const response = await fetch("http://localhost:3000/api/generate-files", {
-				method: "POST",
-				headers: {
-					"Content-Type": "application/json",
-				},
-				body: JSON.stringify({ data: this.data }),
-			});
+			const response = await fetch(
+				"https://syntarax.vercel.app/api/generate-files",
+				{
+					method: "POST",
+					headers: {
+						"Content-Type": "application/json",
+					},
+					body: JSON.stringify({ data: this.data }),
+				}
+			);
 
 			if (!response.ok) {
 				throw new Error(`HTTP error! status: ${response.status}`);
