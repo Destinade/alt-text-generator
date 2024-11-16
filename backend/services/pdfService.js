@@ -4,7 +4,7 @@ export async function generatePDF(data) {
 	try {
 		const doc = new PDFDocument({
 			size: "A4",
-			margin: 50,
+			autoFirstPage: false,
 			bufferPages: true,
 			info: {
 				Title: `Alt Text Report - ${data.loId}`,
@@ -20,124 +20,121 @@ export async function generatePDF(data) {
 		const chunks = [];
 		doc.on("data", (chunk) => chunks.push(chunk));
 
-		// Header
-		doc
-			.fillColor("#1A365D") // Primary color
-			.rect(0, 0, 595.28, 85) // A4 width is 595.28 points
-			.fill();
+		// Define page dimensions
+		const PAGE_WIDTH = 595.28; // A4 width in points
+		const PAGE_HEIGHT = 841.89; // A4 height in points
+		const MARGIN = 50;
+		const CONTENT_WIDTH = PAGE_WIDTH - 2 * MARGIN;
 
-		doc.fillColor("white").fontSize(24).text("Alt Text Preview", 50, 35);
+		// Add first page
+		doc.addPage();
 
-		// Metadata - Now with explicit line breaks
+		// Header on first page
+		doc.fillColor("#1A365D").rect(0, 0, PAGE_WIDTH, 85).fill();
+
+		doc.fillColor("white").fontSize(24).text("Alt Text Preview", MARGIN, 35);
+
+		// Metadata section
 		doc
 			.fillColor("black")
 			.fontSize(12)
-			.text(`LO ID: ${data.loId}`, 50, 120)
-			.text(`Grade Level: ${data.gradeLevel}`, 50, 140)
-			.text(`Link: ${data.relativeLink}`, 50, 160);
+			.text(`LO ID: ${data.loId}`, MARGIN, 120)
+			.text(`Grade Level: ${data.gradeLevel}`, MARGIN, 140)
+			.text(`Link: ${data.relativeLink}`, MARGIN, 160);
 
-		let yPosition = 200;
+		let y = 200; // Start of content area
 
 		// Process images
-		if (data.images && data.images.length > 0) {
-			for (let i = 0; i < data.images.length; i++) {
-				const img = data.images[i];
+		if (data.images?.length > 0) {
+			for (const [index, img] of data.images.entries()) {
+				// Calculate content height needed
+				const headerHeight = 25;
+				const imageHeight = 150;
+				const altTextHeight = doc.heightOfString(img.altText, {
+					width: CONTENT_WIDTH,
+					fontSize: 11,
+				});
+				const sourceHeight = 20;
+				const sectionPadding = 40;
+				const totalSectionHeight =
+					headerHeight +
+					imageHeight +
+					altTextHeight +
+					sourceHeight +
+					sectionPadding;
 
-				// Check if we need a new page before adding content
-				if (yPosition > 700) {
+				// Check if we need a new page
+				if (y + totalSectionHeight > PAGE_HEIGHT - MARGIN * 2) {
 					doc.addPage();
-					yPosition = 50;
+					y = MARGIN;
 				}
 
 				// Image section header
 				doc
-					.fillColor("#2C5282") // Secondary color
-					.rect(15, yPosition, 180, 10, "F");
+					.fillColor("#2C5282")
+					.rect(MARGIN, y, CONTENT_WIDTH, headerHeight)
+					.fill();
 
-				doc.fillColor("white").text(`Image ${i + 1}`, 20, yPosition + 7);
+				doc
+					.fillColor("white")
+					.fontSize(12)
+					.text(`Image ${index + 1}`, MARGIN + 10, y + 7);
 
-				yPosition += 15;
+				y += headerHeight + 15;
 
 				try {
+					// Add image
 					if (img.imageData) {
-						// Extract base64 data and create buffer
 						const base64Data = img.imageData.replace(
 							/^data:image\/\w+;base64,/,
 							""
 						);
 						const imageBuffer = Buffer.from(base64Data, "base64");
 
-						doc.image(imageBuffer, 25, yPosition, {
-							fit: [160, 90],
-							align: "center",
-							valign: "center",
+						doc.image(imageBuffer, MARGIN, y, {
+							fit: [200, imageHeight],
+							align: "left",
+							valign: "top",
 						});
 
-						yPosition += 100;
+						y += imageHeight + 20;
 					}
 
-					// Alt text section
+					// Alt text
 					doc
 						.fillColor("black")
 						.fontSize(11)
 						.font("Helvetica-Bold")
-						.text("Generated Alt Text:", 15, yPosition);
+						.text("Generated Alt Text:", MARGIN, y);
 
-					doc.font("Helvetica").fontSize(11);
+					y += 20;
 
-					const maxWidth = 180;
-					const altTextLines =
-						doc.widthOfString(img.altText) > maxWidth
-							? doc.wrap(img.altText, maxWidth)
-							: [img.altText];
+					doc.font("Helvetica").text(img.altText, MARGIN, y, {
+						width: CONTENT_WIDTH,
+						align: "left",
+					});
 
-					doc.text(altTextLines.join("\n"), 15, yPosition + 7);
-
-					yPosition += altTextLines.length * 7 + 15;
+					y += altTextHeight + 10;
 
 					// Source
 					doc
 						.fontSize(9)
 						.fillColor("#666666")
-						.text(`Source: ${img.src}`, 15, yPosition);
+						.text(`Source: ${img.src}`, MARGIN, y);
 
-					yPosition += 30;
+					y += sourceHeight + 20;
 				} catch (error) {
-					console.error(`Error adding image ${i + 1}:`, error);
+					console.error(`Error adding image ${index + 1}:`, error);
 					doc
 						.fillColor("red")
-						.text(`Error loading image: ${img.src}`, 25, yPosition);
-					yPosition += 20;
+						.text(`Error loading image: ${img.src}`, MARGIN, y);
+					y += 30;
 				}
 			}
 		}
 
-		// Add footer to all pages
-		const range = doc.bufferedPageRange();
-		for (let i = range.start; i < range.start + range.count; i++) {
-			doc.switchToPage(i);
-
-			// Footer line
-			doc.strokeColor("#CCCCCC").moveTo(15, 275).lineTo(195, 275).stroke();
-
-			// Footer text
-			doc.fontSize(8).fillColor("#666666");
-
-			// Copyright text
-			doc.text(
-				`© ${new Date().getFullYear()} Nelson Education Ltd. All rights reserved.`,
-				15,
-				282
-			);
-
-			// Page numbers
-			doc.text(`Page ${i + 1} of ${range.count}`, 195, 282, { align: "right" });
-		}
-
-		// Finalize the PDF
 		doc.end();
 
-		// Return promise that resolves with the buffer
 		return new Promise((resolve) => {
 			doc.on("end", () => {
 				const result = Buffer.concat(chunks);
