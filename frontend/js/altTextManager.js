@@ -236,11 +236,7 @@ class UIHandler {
 				.filter(Boolean);
 
 			const response = await fetch(
-<<<<<<< HEAD
 				"https://syntarax.vercel.app/api/syntara/export",
-=======
-				"https://syntarax.vercel.app/api/export-alt-text",
->>>>>>> main
 				{
 					method: "POST",
 					headers: {
