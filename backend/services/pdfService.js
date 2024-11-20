@@ -34,101 +34,122 @@ export async function generatePDF(data) {
 
 		doc.fillColor("white").fontSize(24).text("Alt Text Preview", MARGIN, 35);
 
-		// Metadata section
+		// Metadata section - handle possible undefined values
 		doc
 			.fillColor("black")
 			.fontSize(12)
-			.text(`LO ID: ${data.loId}`, MARGIN, 120)
-			.text(`Grade Level: ${data.gradeLevel}`, MARGIN, 140)
-			.text(`Link: ${data.relativeLink}`, MARGIN, 160);
+			.text(`LO ID: ${data.loId || "N/A"}`, MARGIN, 120)
+			.text(`Grade Level: ${data.gradeLevel || "N/A"}`, MARGIN, 140)
+			.text(`Link: ${data.relativeLink || "N/A"}`, MARGIN, 160);
 
-		let y = 200; // Start of content area
+		let y = 200;
 
-		// Process images
-		if (data.images?.length > 0) {
-			for (const [index, img] of data.images.entries()) {
-				// Calculate content height needed
-				const headerHeight = 25;
-				const imageHeight = 150;
-				const altTextHeight = doc.heightOfString(img.altText, {
-					width: CONTENT_WIDTH,
-					fontSize: 11,
-				});
-				const sourceHeight = 20;
-				const sectionPadding = 40;
-				const totalSectionHeight =
-					headerHeight +
-					imageHeight +
-					altTextHeight +
-					sourceHeight +
-					sectionPadding;
+		// Process images from the correct data structure
+		if (data.results && data.results.length > 0) {
+			let imageIndex = 1;
 
-				// Check if we need a new page
-				if (y + totalSectionHeight > PAGE_HEIGHT - MARGIN * 2) {
-					doc.addPage();
-					y = MARGIN;
-				}
-
-				// Image section header
-				doc
-					.fillColor("#2C5282")
-					.rect(MARGIN, y, CONTENT_WIDTH, headerHeight)
-					.fill();
-
-				doc
-					.fillColor("white")
-					.fontSize(12)
-					.text(`Image ${index + 1}`, MARGIN + 10, y + 7);
-
-				y += headerHeight + 15;
-
-				try {
-					// Add image
-					if (img.imageData) {
-						const base64Data = img.imageData.replace(
-							/^data:image\/\w+;base64,/,
-							""
-						);
-						const imageBuffer = Buffer.from(base64Data, "base64");
-
-						doc.image(imageBuffer, MARGIN, y, {
-							fit: [200, imageHeight],
-							align: "left",
-							valign: "top",
+			for (const result of data.results) {
+				if (result.success && result.images?.length > 0) {
+					for (const img of result.images) {
+						// Calculate content height needed
+						const headerHeight = 25;
+						const imageHeight = 150;
+						const altTextHeight = doc.heightOfString(img.altText || "", {
+							width: CONTENT_WIDTH,
+							fontSize: 11,
 						});
+						const sourceHeight = 20;
+						const sectionPadding = 40;
+						const totalSectionHeight =
+							headerHeight +
+							imageHeight +
+							altTextHeight +
+							sourceHeight +
+							sectionPadding;
 
-						y += imageHeight + 20;
+						// Check if we need a new page
+						if (y + totalSectionHeight > PAGE_HEIGHT - MARGIN * 2) {
+							doc.addPage();
+							y = MARGIN;
+						}
+
+						// Image section header
+						doc
+							.fillColor("#2C5282")
+							.rect(MARGIN, y, CONTENT_WIDTH, headerHeight)
+							.fill();
+
+						doc
+							.fillColor("white")
+							.fontSize(12)
+							.text(`Image ${imageIndex}`, MARGIN + 10, y + 7);
+
+						y += headerHeight + 15;
+
+						try {
+							// Add image if we have image data
+							if (img.imageData) {
+								try {
+									// The imageData is already in base64 format from the export.js
+									doc.image(img.imageData, MARGIN, y, {
+										fit: [200, imageHeight],
+										align: "left",
+										valign: "top",
+									});
+								} catch (imageError) {
+									console.error("Error adding image:", imageError);
+									doc
+										.fontSize(10)
+										.fillColor("#666666")
+										.text(`[Image: ${img.url}]`, MARGIN, y);
+								}
+							} else {
+								doc
+									.fillColor("#FF0000")
+									.fontSize(10)
+									.text("[Image not available]", MARGIN, y);
+							}
+
+							y += imageHeight + 20;
+
+							// Add alt text section
+							doc
+								.fillColor("#333333")
+								.fontSize(11)
+								.font("Helvetica-Bold")
+								.text("Generated Alt Text:", MARGIN, y);
+
+							y += 20;
+
+							doc
+								.font("Helvetica")
+								.text(img.altText || "[No alt text available]", MARGIN, y, {
+									width: CONTENT_WIDTH,
+									align: "left",
+								});
+
+							y += doc.heightOfString(img.altText || "", {
+								width: CONTENT_WIDTH,
+								fontSize: 11,
+							});
+
+							// Source
+							doc
+								.fontSize(9)
+								.fillColor("#666666")
+								.text(`Source: ${img.url || "N/A"}`, MARGIN, y); // Changed from img.src to img.url
+
+							y += sourceHeight + 20;
+							imageIndex++;
+						} catch (error) {
+							console.error("Error adding image to PDF:", error);
+							doc
+								.fillColor("#FF0000")
+								.fontSize(10)
+								.text(`[Error adding image: ${error.message}]`, MARGIN, y);
+							y += 30;
+						}
 					}
-
-					// Alt text
-					doc
-						.fillColor("black")
-						.fontSize(11)
-						.font("Helvetica-Bold")
-						.text("Generated Alt Text:", MARGIN, y);
-
-					y += 20;
-
-					doc.font("Helvetica").text(img.altText, MARGIN, y, {
-						width: CONTENT_WIDTH,
-						align: "left",
-					});
-
-					y += altTextHeight + 10;
-
-					// Source
-					doc
-						.fontSize(9)
-						.fillColor("#666666")
-						.text(`Source: ${img.src}`, MARGIN, y);
-
-					y += sourceHeight + 20;
-				} catch (error) {
-					console.error(`Error adding image ${index + 1}:`, error);
-					doc
-						.fillColor("red")
-						.text(`Error loading image: ${img.src}`, MARGIN, y);
-					y += 30;
 				}
 			}
 		}

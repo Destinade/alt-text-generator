@@ -3,13 +3,7 @@ import { generatePDF } from "../services/pdfService.js";
 
 function getTimestamp() {
 	const now = new Date();
-	return `${now.getFullYear()}${String(now.getMonth() + 1).padStart(
-		2,
-		"0"
-	)}${String(now.getDate()).padStart(2, "0")}-${String(now.getHours()).padStart(
-		2,
-		"0"
-	)}${String(now.getMinutes()).padStart(2, "0")}`;
+	return now.toISOString().replace(/[:.]/g, "-");
 }
 
 export default async function handler(req, res) {
@@ -44,7 +38,10 @@ export default async function handler(req, res) {
 
 	try {
 		const { data } = req.body;
-		console.log("Received data in generate-files");
+		console.log(
+			"Received data in generate-files:",
+			JSON.stringify(data, null, 2)
+		);
 
 		if (!data) {
 			return res.status(400).json({
@@ -54,33 +51,41 @@ export default async function handler(req, res) {
 		}
 
 		const timestamp = getTimestamp();
+
+		// Handle multiple LOs
+		const stats = data.stats;
+		const results = data.results;
+
+		// Generate combined files for all successful LOs
 		const [excelBuffer, pdfBuffer] = await Promise.all([
-			generateExcel(data),
-			generatePDF(data),
+			generateExcel({ stats, results }),
+			generatePDF({ stats, results }),
 		]);
 
 		console.log("Excel buffer size:", excelBuffer?.length);
 		console.log("PDF buffer size:", pdfBuffer?.length);
+		console.log("Results count:", results?.length);
+		console.log(
+			"Successful results:",
+			results?.filter((r) => r.success && r.images?.length > 0).length
+		);
 
-		if (
-			!excelBuffer ||
-			!pdfBuffer ||
-			excelBuffer.length < 1000 ||
-			pdfBuffer.length < 1000
-		) {
-			throw new Error("Generated files are too small");
+		// Adjust or remove size check
+		if (!excelBuffer || !pdfBuffer) {
+			throw new Error("Failed to generate files");
 		}
 
+		// Use timestamp for combined files
 		return res.status(200).json({
 			success: true,
 			files: {
 				excel: {
 					buffer: excelBuffer.toString("base64"),
-					filename: `alt-text-${data.loId}-${timestamp}.xlsx`,
+					filename: `alt-text-batch-${timestamp}.xlsx`,
 				},
 				pdf: {
 					buffer: pdfBuffer.toString("base64"),
-					filename: `alt-text-preview-${data.loId}-${timestamp}.pdf`,
+					filename: `alt-text-preview-batch-${timestamp}.pdf`,
 				},
 			},
 		});

@@ -37,12 +37,20 @@
 			<div class="section export-section">
 				<h2>1. Export Alt Text</h2>
 				<form id="exportForm">
-					<label for="loId">LO ID:</label>
-					<input type="text" id="loId" name="loId">
-					<label for="relativeLink">Relative Link to LO HTML:</label>
-					<input type="url" id="relativeLink" name="relativeLink">
+					<div class="project-selection">
+						<label for="projectSelect">Select Project:</label>
+						<select id="projectSelect" name="projectSelect" required>
+							<option value="">Choose a project...</option>
+						</select>
+					</div>
+					<div class="lo-selection">
+						<label>Select Learning Objects:</label>
+						<div class="lo-list" id="loList">
+							<!-- Will be populated dynamically -->
+						</div>
+					</div>
 					<label for="gradeLevel">Grade Level:</label>
-					<input type="number" id="gradeLevel" name="gradeLevel" min="1" max="12">
+					<input type="number" id="gradeLevel" name="gradeLevel" min="1" max="12" placeholder="In Development" disabled>
 					<button type="submit">Generate Alt Text</button>
 				</form>
 				<div id="exportResult"></div>
