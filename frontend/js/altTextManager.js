@@ -3,6 +3,7 @@ class UIHandler {
 		this.elements = elements;
 		this.projects = [];
 		this.selectedLOs = new Set();
+		this.currentLOs = [];
 		this.init();
 	}
 
@@ -25,17 +26,48 @@ class UIHandler {
 	}
 
 	async loadProjects() {
+		const select = this.elements.projectSelect;
+		select.disabled = true;
+
 		try {
 			const response = await fetch(
 				"http://localhost:3000/api/syntara/projects"
 			);
+			if (!response.ok) {
+				throw new Error(`HTTP error! status: ${response.status}`);
+			}
+
 			const projects = await response.json();
 
+			// Store projects for later use
 			this.projects = projects;
-			this.populateProjectSelect(projects);
+
+			// Clear existing options except the default one
+			select.innerHTML = '<option value="">Choose a project...</option>';
+
+			// Add project options
+			projects.forEach((project) => {
+				const option = document.createElement("option");
+				option.value = project.id;
+				option.textContent = project.name;
+				select.appendChild(option);
+			});
+
+			// Add loading placeholder if no projects
+			if (projects.length === 0) {
+				const option = document.createElement("option");
+				option.disabled = true;
+				option.textContent = "No projects available";
+				select.appendChild(option);
+			}
 		} catch (error) {
 			console.error("Error loading projects:", error);
 			this.showError("Failed to load projects");
+
+			// Add error placeholder
+			select.innerHTML = '<option value="">Error loading projects</option>';
+		} finally {
+			select.disabled = false;
 		}
 	}
 
@@ -43,6 +75,7 @@ class UIHandler {
 		const projectId = this.elements.projectSelect.value;
 		if (!projectId) {
 			this.elements.loList.innerHTML = "";
+			this.currentLOs = [];
 			return;
 		}
 
@@ -50,7 +83,11 @@ class UIHandler {
 			const response = await fetch(
 				`http://localhost:3000/api/syntara/projects/${projectId}/los`
 			);
+			if (!response.ok) {
+				throw new Error(`HTTP error! status: ${response.status}`);
+			}
 			const los = await response.json();
+			this.currentLOs = los;
 			this.populateLOList(los);
 		} catch (error) {
 			console.error("Error loading LOs:", error);
@@ -84,22 +121,49 @@ class UIHandler {
 		const searchDiv = document.createElement("div");
 		searchDiv.className = "lo-search";
 		searchDiv.innerHTML = `
-			<input type="text" placeholder="Search Learning Objects..." 
-				   id="loSearch" autocomplete="off">
+			<input type="text" 
+				   placeholder="Search Learning Objects..." 
+				   id="loSearch" 
+				   autocomplete="off">
+			<div class="select-actions">
+				<button type="button" class="select-all">Select All</button>
+				<button type="button" class="clear-all">Clear All</button>
+			</div>
 		`;
 		container.appendChild(searchDiv);
 
-		// Create LO list
+		// Create LO list container
 		const loListDiv = document.createElement("div");
 		loListDiv.className = "lo-items";
 
-		los.forEach((lo) => {
+		// Sort LOs alphabetically
+		const sortedLOs = [...los].sort((a, b) => a.name.localeCompare(b.name));
+
+		sortedLOs.forEach((lo) => {
 			const item = document.createElement("div");
 			item.className = "lo-item";
+			const checkboxId = `lo_${lo.id}`;
+
 			item.innerHTML = `
-				<input type="checkbox" id="lo_${lo.id}" value="${lo.id}">
-				<label for="lo_${lo.id}">${lo.name}</label>
+				<input type="checkbox" 
+					   id="${checkboxId}" 
+					   value="${lo.id}"
+					   ${this.selectedLOs.has(lo.id) ? "checked" : ""}>
+				<label for="${checkboxId}">
+					<span class="lo-name">${lo.name}</span>
+					<span class="lo-path">${lo.path}</span>
+				</label>
 			`;
+
+			const checkbox = item.querySelector('input[type="checkbox"]');
+			checkbox.addEventListener("change", () => {
+				if (checkbox.checked) {
+					this.selectedLOs.add(lo.id);
+				} else {
+					this.selectedLOs.delete(lo.id);
+				}
+			});
+
 			loListDiv.appendChild(item);
 		});
 
@@ -110,6 +174,30 @@ class UIHandler {
 		searchInput.addEventListener("input", (e) =>
 			this.handleSearch(e.target.value)
 		);
+
+		// Setup select/clear all functionality
+		const selectAllBtn = container.querySelector(".select-all");
+		const clearAllBtn = container.querySelector(".clear-all");
+
+		selectAllBtn.addEventListener("click", () => {
+			const visibleCheckboxes = loListDiv.querySelectorAll(
+				'.lo-item:not([style*="display: none"]) input[type="checkbox"]'
+			);
+			visibleCheckboxes.forEach((checkbox) => {
+				checkbox.checked = true;
+				this.selectedLOs.add(checkbox.value);
+			});
+		});
+
+		clearAllBtn.addEventListener("click", () => {
+			const visibleCheckboxes = loListDiv.querySelectorAll(
+				'.lo-item:not([style*="display: none"]) input[type="checkbox"]'
+			);
+			visibleCheckboxes.forEach((checkbox) => {
+				checkbox.checked = false;
+				this.selectedLOs.delete(checkbox.value);
+			});
+		});
 	}
 
 	handleSearch(query) {
@@ -126,35 +214,57 @@ class UIHandler {
 	async handleSubmit(e) {
 		e.preventDefault();
 		const formData = new FormData(this.elements.exportForm);
+		const projectId = formData.get("projectSelect");
 
-		console.log("Form submitted", Object.fromEntries(formData));
+		if (this.selectedLOs.size === 0) {
+			this.updateUI({
+				message: "Please select at least one Learning Object",
+				status: "error",
+			});
+			return;
+		}
 
 		try {
-			const response = await fetch(
-				"http://localhost:3000/api/export-alt-text",
-				{
-					method: "POST",
-					headers: {
-						"Content-Type": "application/json",
-					},
-					body: JSON.stringify(Object.fromEntries(formData)),
-				}
-			);
+			this.updateUI({
+				message: "Processing Learning Objects...",
+				status: "loading",
+			});
 
-			console.log("Response received:", response);
+			// Use currentLOs instead of projects
+			const selectedLOsData = Array.from(this.selectedLOs)
+				.map((loId) => this.currentLOs.find((lo) => lo.id === loId))
+				.filter(Boolean);
+
+			const response = await fetch("http://localhost:3000/api/syntara/export", {
+				method: "POST",
+				headers: {
+					"Content-Type": "application/json",
+				},
+				body: JSON.stringify({
+					projectId,
+					learningObjects: selectedLOsData,
+					gradeLevel: formData.get("gradeLevel"),
+				}),
+			});
 
 			if (!response.ok) {
 				throw new Error(`HTTP error! status: ${response.status}`);
 			}
 
 			const result = await response.json();
+
+			// Store the data for download/email actions
 			this.data = result.data;
 
+			// Show success state with stats
 			this.updateUI({
 				message: "Alt text generated successfully!",
 				status: "success",
 				data: result.data,
 			});
+
+			// Show download/email buttons
+			this.elements.exportActions.style.display = "block";
 		} catch (error) {
 			console.error("Error:", error);
 			this.updateUI({
@@ -295,6 +405,13 @@ class UIHandler {
 		if (this.elements.emailBtn) {
 			this.elements.emailBtn.disabled = false;
 		}
+	}
+
+	showError(message) {
+		this.updateUI({
+			message,
+			status: "error",
+		});
 	}
 }
 
