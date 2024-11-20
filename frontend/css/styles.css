@@ -452,3 +452,59 @@ button:disabled {
     font-size: 0.9em;
     margin-left: 10px;
 }
+
+.project-selection {
+    margin-bottom: 1.5rem;
+}
+
+.lo-selection {
+    margin-bottom: 1.5rem;
+}
+
+.lo-list {
+    max-height: 300px;
+    overflow-y: auto;
+    border: 1px solid var(--light-accent-color);
+    border-radius: 4px;
+    padding: 0.5rem;
+    background: white;
+}
+
+.lo-item {
+    display: flex;
+    align-items: center;
+    padding: 0.5rem;
+    border-bottom: 1px solid var(--light-accent-color);
+}
+
+.lo-item:last-child {
+    border-bottom: none;
+}
+
+.lo-item label {
+    margin-left: 0.5rem;
+    cursor: pointer;
+    flex: 1;
+}
+
+.lo-item input[type="checkbox"] {
+    cursor: pointer;
+}
+
+.lo-search {
+    margin-bottom: 0.5rem;
+}
+
+.lo-search input {
+    width: 100%;
+    padding: 0.5rem;
+    border: 1px solid var(--light-accent-color);
+    border-radius: 4px;
+}
+
+.no-los-message {
+    text-align: center;
+    padding: 1rem;
+    color: var(--text-color);
+    font-style: italic;
+}

@@ -1,29 +1,127 @@
-const UIHandler = {
-	init(elements) {
+class UIHandler {
+	constructor(elements) {
 		this.elements = elements;
+		this.projects = [];
+		this.selectedLOs = new Set();
+		this.init();
+	}
+
+	async init() {
 		this.setupEventListeners();
-	},
+		await this.loadProjects();
+	}
 
 	setupEventListeners() {
+		this.elements.projectSelect.addEventListener("change", () =>
+			this.handleProjectChange()
+		);
 		this.elements.exportForm.addEventListener("submit", (e) =>
 			this.handleSubmit(e)
 		);
-		this.elements.importForm.addEventListener("submit", (e) =>
-			this.handleImport(e)
+		this.elements.downloadBtn?.addEventListener("click", () =>
+			this.handleDownload()
 		);
+		this.elements.emailBtn?.addEventListener("click", () => this.handleEmail());
+	}
 
-		if (this.elements.downloadBtn) {
-			this.elements.downloadBtn.addEventListener("click", () =>
-				this.handleDownload()
+	async loadProjects() {
+		try {
+			const response = await fetch(
+				"http://localhost:3000/api/syntara/projects"
 			);
+			const projects = await response.json();
+
+			this.projects = projects;
+			this.populateProjectSelect(projects);
+		} catch (error) {
+			console.error("Error loading projects:", error);
+			this.showError("Failed to load projects");
+		}
+	}
+
+	async handleProjectChange() {
+		const projectId = this.elements.projectSelect.value;
+		if (!projectId) {
+			this.elements.loList.innerHTML = "";
+			return;
 		}
 
-		if (this.elements.emailBtn) {
-			this.elements.emailBtn.addEventListener("click", () =>
-				this.handleEmail()
+		try {
+			const response = await fetch(
+				`http://localhost:3000/api/syntara/projects/${projectId}/los`
 			);
+			const los = await response.json();
+			this.populateLOList(los);
+		} catch (error) {
+			console.error("Error loading LOs:", error);
+			this.showError("Failed to load Learning Objects");
 		}
-	},
+	}
+
+	populateProjectSelect(projects) {
+		const select = this.elements.projectSelect;
+		select.innerHTML = '<option value="">Choose a project...</option>';
+
+		projects.forEach((project) => {
+			const option = document.createElement("option");
+			option.value = project.id;
+			option.textContent = project.name;
+			select.appendChild(option);
+		});
+	}
+
+	populateLOList(los) {
+		const container = this.elements.loList;
+		container.innerHTML = "";
+
+		if (los.length === 0) {
+			container.innerHTML =
+				'<div class="no-los-message">No Learning Objects available</div>';
+			return;
+		}
+
+		// Add search input
+		const searchDiv = document.createElement("div");
+		searchDiv.className = "lo-search";
+		searchDiv.innerHTML = `
+			<input type="text" placeholder="Search Learning Objects..." 
+				   id="loSearch" autocomplete="off">
+		`;
+		container.appendChild(searchDiv);
+
+		// Create LO list
+		const loListDiv = document.createElement("div");
+		loListDiv.className = "lo-items";
+
+		los.forEach((lo) => {
+			const item = document.createElement("div");
+			item.className = "lo-item";
+			item.innerHTML = `
+				<input type="checkbox" id="lo_${lo.id}" value="${lo.id}">
+				<label for="lo_${lo.id}">${lo.name}</label>
+			`;
+			loListDiv.appendChild(item);
+		});
+
+		container.appendChild(loListDiv);
+
+		// Setup search functionality
+		const searchInput = container.querySelector("#loSearch");
+		searchInput.addEventListener("input", (e) =>
+			this.handleSearch(e.target.value)
+		);
+	}
+
+	handleSearch(query) {
+		const items = this.elements.loList.querySelectorAll(".lo-item");
+		items.forEach((item) => {
+			const label = item.querySelector("label");
+			const matches = label.textContent
+				.toLowerCase()
+				.includes(query.toLowerCase());
+			item.style.display = matches ? "flex" : "none";
+		});
+	}
 
 	async handleSubmit(e) {
 		e.preventDefault();
@@ -64,7 +162,7 @@ const UIHandler = {
 				status: "error",
 			});
 		}
-	},
+	}
 
 	async handleDownload() {
 		console.log("Download handler started");
@@ -117,7 +215,7 @@ const UIHandler = {
 				status: "error",
 			});
 		}
-	},
+	}
 
 	downloadFile(base64Data, filename) {
 		console.log(`Creating blob for ${filename}...`);
@@ -161,7 +259,7 @@ const UIHandler = {
 			console.error(`Error in downloadFile for ${filename}:`, error);
 			throw error;
 		}
-	},
+	}
 
 	updateUI(state) {
 		this.elements.exportResult.innerHTML = `
@@ -197,19 +295,20 @@ const UIHandler = {
 		if (this.elements.emailBtn) {
 			this.elements.emailBtn.disabled = false;
 		}
-	},
-};
+	}
+}
 
 // Initialize when DOM is loaded
 document.addEventListener("DOMContentLoaded", () => {
 	const elements = {
 		exportForm: document.getElementById("exportForm"),
-		importForm: document.getElementById("importForm"),
+		projectSelect: document.getElementById("projectSelect"),
+		loList: document.getElementById("loList"),
 		exportResult: document.getElementById("exportResult"),
 		exportActions: document.getElementById("exportActions"),
 		downloadBtn: document.getElementById("downloadBtn"),
 		emailBtn: document.getElementById("emailBtn"),
 	};
 
-	UIHandler.init(elements);
+	new UIHandler(elements);
 });
