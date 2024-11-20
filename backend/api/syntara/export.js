@@ -113,7 +113,7 @@ export default async function handler(req, res) {
 
 								console.log(`Calling Vision API for ${src}`);
 								const visionResponse = await fetch(
-									"https://nellie-backend.vercel.app/vision",
+									"http://localhost:3001/vision",
 									{
 										method: "POST",
 										headers: {
