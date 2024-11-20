@@ -31,7 +31,7 @@ class UIHandler {
 
 		try {
 			const response = await fetch(
-				"http://localhost:3000/api/syntara/projects"
+				"https://syntarax.vercel.app/api/syntara/projects"
 			);
 			if (!response.ok) {
 				throw new Error(`HTTP error! status: ${response.status}`);
@@ -81,7 +81,7 @@ class UIHandler {
 
 		try {
 			const response = await fetch(
-				`http://localhost:3000/api/syntara/projects/${projectId}/los`
+				`https://syntarax.vercel.app/api/syntara/projects/${projectId}/los`
 			);
 			if (!response.ok) {
 				throw new Error(`HTTP error! status: ${response.status}`);
@@ -235,17 +235,20 @@ class UIHandler {
 				.map((loId) => this.currentLOs.find((lo) => lo.id === loId))
 				.filter(Boolean);
 
-			const response = await fetch("http://localhost:3000/api/syntara/export", {
-				method: "POST",
-				headers: {
-					"Content-Type": "application/json",
-				},
-				body: JSON.stringify({
-					projectId,
-					learningObjects: selectedLOsData,
-					gradeLevel: formData.get("gradeLevel"),
-				}),
-			});
+			const response = await fetch(
+				"https://syntarax.vercel.app/api/syntara/export",
+				{
+					method: "POST",
+					headers: {
+						"Content-Type": "application/json",
+					},
+					body: JSON.stringify({
+						projectId,
+						learningObjects: selectedLOsData,
+						gradeLevel: formData.get("gradeLevel"),
+					}),
+				}
+			);
 
 			if (!response.ok) {
 				throw new Error(`HTTP error! status: ${response.status}`);
@@ -289,13 +292,16 @@ class UIHandler {
 				JSON.stringify(this.data, null, 2)
 			);
 			console.log("Sending request to generate-files endpoint...");
-			const response = await fetch("http://localhost:3000/api/generate-files", {
-				method: "POST",
-				headers: {
-					"Content-Type": "application/json",
-				},
-				body: JSON.stringify({ data: this.data }),
-			});
+			const response = await fetch(
+				"https://syntarax.vercel.app/api/generate-files",
+				{
+					method: "POST",
+					headers: {
+						"Content-Type": "application/json",
+					},
+					body: JSON.stringify({ data: this.data }),
+				}
+			);
 
 			if (!response.ok) {
 				throw new Error(`HTTP error! status: ${response.status}`);

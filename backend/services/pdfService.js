@@ -88,12 +88,21 @@ export async function generatePDF(data) {
 
 						try {
 							// Add image if we have image data
-							if (img.url) {
-								// Changed from imageData to url
-								doc
-									.fontSize(10)
-									.fillColor("#666666")
-									.text(`[Image: ${img.url}]`, MARGIN, y);
+							if (img.imageData) {
+								try {
+									// The imageData is already in base64 format from the export.js
+									doc.image(img.imageData, MARGIN, y, {
+										fit: [200, imageHeight],
+										align: "left",
+										valign: "top",
+									});
+								} catch (imageError) {
+									console.error("Error adding image:", imageError);
+									doc
+										.fontSize(10)
+										.fillColor("#666666")
+										.text(`[Image: ${img.url}]`, MARGIN, y);
+								}
 							} else {
 								doc
 									.fillColor("#FF0000")

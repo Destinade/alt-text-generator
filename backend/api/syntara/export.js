@@ -109,11 +109,11 @@ export default async function handler(req, res) {
 
 								// Call vision API with correct endpoint and timeout
 								const controller = new AbortController();
-								const timeoutId = setTimeout(() => controller.abort(), 5000);
+								const timeoutId = setTimeout(() => controller.abort(), 30000);
 
 								console.log(`Calling Vision API for ${src}`);
 								const visionResponse = await fetch(
-									"http://localhost:3001/vision",
+									"https://nellie-backend.vercel.app/vision",
 									{
 										method: "POST",
 										headers: {
