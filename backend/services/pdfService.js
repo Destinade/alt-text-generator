@@ -83,7 +83,7 @@ export async function generatePDF(data) {
 				y += headerHeight + 15;
 
 				try {
-					// Add image
+					// Add image if we have image data
 					if (img.imageData) {
 						const base64Data = img.imageData.replace(
 							/^data:image\/\w+;base64,/,
@@ -92,29 +92,39 @@ export async function generatePDF(data) {
 						const imageBuffer = Buffer.from(base64Data, "base64");
 
 						doc.image(imageBuffer, MARGIN, y, {
-							fit: [200, imageHeight],
-							align: "left",
-							valign: "top",
+							fit: [CONTENT_WIDTH - 40, imageHeight],
+							align: "center",
+							valign: "center",
 						});
-
-						y += imageHeight + 20;
+					} else {
+						doc
+							.fillColor("#FF0000")
+							.fontSize(10)
+							.text("[Image not available]", MARGIN, y);
 					}
 
-					// Alt text
+					y += imageHeight + 20;
+
+					// Add alt text section
 					doc
-						.fillColor("black")
+						.fillColor("#333333")
 						.fontSize(11)
 						.font("Helvetica-Bold")
 						.text("Generated Alt Text:", MARGIN, y);
 
 					y += 20;
 
-					doc.font("Helvetica").text(img.altText, MARGIN, y, {
-						width: CONTENT_WIDTH,
-						align: "left",
-					});
+					doc
+						.font("Helvetica")
+						.text(img.altText || "[No alt text available]", MARGIN, y, {
+							width: CONTENT_WIDTH,
+							align: "left",
+						});
 
-					y += altTextHeight + 10;
+					y += doc.heightOfString(img.altText || "", {
+						width: CONTENT_WIDTH,
+						fontSize: 11,
+					});
 
 					// Source
 					doc
@@ -124,10 +134,11 @@ export async function generatePDF(data) {
 
 					y += sourceHeight + 20;
 				} catch (error) {
-					console.error(`Error adding image ${index + 1}:`, error);
+					console.error("Error adding image to PDF:", error);
 					doc
-						.fillColor("red")
-						.text(`Error loading image: ${img.src}`, MARGIN, y);
+						.fillColor("#FF0000")
+						.fontSize(10)
+						.text(`[Error adding image: ${error.message}]`, MARGIN, y);
 					y += 30;
 				}
 			}
