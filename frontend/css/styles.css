@@ -584,3 +584,145 @@ button:disabled {
 .lo-items {
     background: white;
 }
+
+#futuristic-loader {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(135deg, #000428, #004e92);
+  z-index: 9999;
+  display: none;
+  opacity: 0;
+  transition: opacity 0.3s ease-in-out;
+}
+
+#futuristic-loader.active {
+  display: flex;
+  opacity: 1;
+  justify-content: center;
+  align-items: center;
+}
+
+.loader-content {
+  text-align: center;
+}
+
+.scanner {
+  width: 200px;
+  height: 4px;
+  background: #00ff8c;
+  position: relative;
+  margin: 0 auto 50px;
+  border-radius: 4px;
+  animation: scan 2s infinite;
+  box-shadow: 0 0 15px #00ff8c;
+}
+
+.scanner::before {
+  content: '';
+  position: absolute;
+  width: 100%;
+  height: 100%;
+  background: rgba(0, 255, 140, 0.15);
+  filter: blur(20px);
+}
+
+.loading-text {
+  color: #fff;
+  font-family: 'Roboto', sans-serif;
+  font-size: 24px;
+  letter-spacing: 8px;
+  margin-bottom: 32px;
+}
+
+.loading-text span {
+  display: inline-block;
+  animation: pulse 1.4s infinite;
+}
+
+.loading-text span:nth-child(2) { animation-delay: 0.1s; }
+.loading-text span:nth-child(3) { animation-delay: 0.2s; }
+.loading-text span:nth-child(4) { animation-delay: 0.3s; }
+.loading-text span:nth-child(5) { animation-delay: 0.4s; }
+.loading-text span:nth-child(6) { animation-delay: 0.5s; }
+.loading-text span:nth-child(7) { animation-delay: 0.6s; }
+.loading-text span:nth-child(8) { animation-delay: 0.7s; }
+.loading-text span:nth-child(9) { animation-delay: 0.8s; }
+.loading-text span:nth-child(10) { animation-delay: 0.9s; }
+.loading-text span:nth-child(11) { animation-delay: 1s; }
+.loading-text span:nth-child(12) { animation-delay: 1.1s; }
+
+.progress-bar {
+  width: 300px;
+  height: 4px;
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 4px;
+  margin: 0 auto;
+  position: relative;
+  overflow: hidden;
+}
+
+.progress {
+  position: absolute;
+  left: 0;
+  top: 0;
+  height: 100%;
+  width: 0%;
+  background: #00ff8c;
+  animation: progress 2s ease-in-out infinite;
+  box-shadow: 0 0 10px #00ff8c;
+}
+
+@keyframes scan {
+  0% {
+    transform: translateY(-50px);
+    opacity: 0;
+  }
+  50% {
+    transform: translateY(50px);
+    opacity: 1;
+  }
+  100% {
+    transform: translateY(150px);
+    opacity: 0;
+  }
+}
+
+@keyframes pulse {
+  0%, 100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.3;
+    transform: scale(0.95);
+  }
+}
+
+@keyframes progress {
+  0% {
+    width: 0%;
+    opacity: 1;
+  }
+  50% {
+    width: 100%;
+    opacity: 1;
+  }
+  100% {
+    width: 100%;
+    opacity: 0;
+  }
+}
+
+#main-content {
+    opacity: 0;
+    visibility: hidden;
+    transition: opacity 0.8s ease-in-out, visibility 0.8s;
+}
+
+#main-content.visible {
+    opacity: 1;
+    visibility: visible;
+}
