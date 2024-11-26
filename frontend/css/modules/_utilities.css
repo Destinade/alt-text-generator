@@ -1,0 +1,31 @@
+.m-0 { margin: 0 }
+.mt-1 { margin-top: 0.25rem }
+.mb-1 { margin-bottom: 0.25rem }
+.ml-1 { margin-left: 0.25rem }
+.mr-1 { margin-right: 0.25rem }
+.p-0 { padding: 0 }
+.pt-1 { padding-top: 0.25rem }
+.pb-1 { padding-bottom: 0.25rem }
+.pl-1 { padding-left: 0.25rem }
+.pr-1 { padding-right: 0.25rem }
+
+.d-flex { display: flex }
+.justify-center { justify-content: center }
+.align-center { align-items: center }
+.flex-column { flex-direction: column }
+
+.text-center { text-align: center }
+.text-right { text-align: right }
+.text-left { text-align: left }
+.text-bold { font-weight: bold }
+.text-italic { font-style: italic }
+
+.hidden { display: none }
+.visible { display: block }
+
+.bg-primary { background-color: var(--primary-color) }
+.bg-secondary { background-color: var(--secondary-color) }
+.bg-accent { background-color: var(--accent-color) }
+
+.border { border: 1px solid var(--light-accent-color) }
+.border-radius { border-radius: 4px } 

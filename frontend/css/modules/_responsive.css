@@ -1,0 +1,30 @@
+@media (max-width: 1024px) {
+    .sections-wrapper {
+        flex-direction: column;
+    }
+
+    .section-divider {
+        transform: rotate(90deg);
+        padding: 1rem 0;
+    }
+
+    .process-flow {
+        flex-direction: column;
+        gap: 1rem;
+    }
+
+    .process-arrow {
+        width: 2px;
+        height: 20px;
+        margin: 0.5rem 0;
+    }
+
+    .process-arrow::after {
+        right: -4px;
+        top: auto;
+        bottom: -5px;
+        border-left: 5px solid transparent;
+        border-right: 5px solid transparent;
+        border-top: 5px solid var(--light-accent-color);
+    }
+} 
