@@ -726,3 +726,35 @@ button:disabled {
     opacity: 1;
     visibility: visible;
 }
+
+#importResult .loading {
+    padding: 1rem;
+    background-color: #f7fafc;
+    border-left: 4px solid #4299e1;
+    margin: 1rem 0;
+    color: #2d3748;
+}
+
+#importResult .success {
+    padding: 1rem;
+    background-color: #f0fff4;
+    border-left: 4px solid #48bb78;
+    margin: 1rem 0;
+    color: #2f855a;
+}
+
+#importResult .error {
+    padding: 1rem;
+    background-color: #fff5f5;
+    border-left: 4px solid #f56565;
+    margin: 1rem 0;
+    color: #c53030;
+}
+
+#importResult .progress {
+    padding: 1rem;
+    background-color: #ebf8ff;
+    border-left: 4px solid #4299e1;
+    margin: 1rem 0;
+    color: #2b6cb0;
+}

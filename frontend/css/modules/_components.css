@@ -172,4 +172,86 @@
   background: #00ff8c;
   animation: progress 2s ease-in-out infinite;
   box-shadow: 0 0 10px #00ff8c;
+}
+
+.lo-selection {
+    margin-bottom: 1.5rem;
+}
+
+.lo-list {
+    max-height: 300px;
+    overflow-y: auto;
+    overflow-x: hidden;
+    border: 1px solid var(--light-accent-color);
+    border-radius: 4px;
+    padding: 0.25rem;
+    background: white;
+    width: 100%;
+    box-sizing: border-box;
+}
+
+.lo-item {
+    display: flex;
+    align-items: center;
+    padding: 0.5rem;
+    border-bottom: 1px solid var(--light-accent-color);
+}
+
+.lo-item:last-child {
+    border-bottom: none;
+}
+
+.lo-item label {
+    margin-left: 0.5rem;
+    cursor: pointer;
+    flex: 1;
+    font-weight: normal;
+}
+
+.lo-item input[type="checkbox"] {
+    cursor: pointer;
+}
+
+.lo-search {
+    margin-bottom: 0.5rem;
+}
+
+.lo-search input {
+    width: 100%;
+    padding: 0.5rem;
+    border: 1px solid var(--light-accent-color);
+    border-radius: 4px;
+    box-sizing: border-box;
+}
+
+.no-los-message {
+    text-align: center;
+    padding: 1rem;
+    color: var(--text-color);
+    font-style: italic;
+}
+
+.select-actions {
+    display: flex;
+    gap: 0.5rem;
+}
+
+.select-actions button {
+    padding: 0.25rem 0.5rem;
+    font-size: 0.875rem;
+    background-color: var(--light-accent-color);
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    flex: 1;
+}
+
+.lo-name {
+    font-weight: 500;
+}
+
+.lo-path {
+    font-size: 0.875rem;
+    color: #666;
+    font-weight: normal;
 } 

@@ -1,5 +1,7 @@
 export class APIService {
-	static BASE_URL = "https://syntarax.vercel.app/api";
+	// static BASE_URL = "https://syntarax.vercel.app/api";
+
+	static BASE_URL = "http://localhost:3000/api";
 
 	static async fetchProjects() {
 		const response = await fetch(`${this.BASE_URL}/syntarax/projects`);
