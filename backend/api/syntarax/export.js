@@ -86,7 +86,11 @@ export default async function handler(req, res) {
 									.split("/")
 									.slice(0, -1)
 									.join("/"); // Gets the project directory
-								const imageKey = `${projectPath}/${src}`; // Combines project path with image path
+
+								// Add a trailing slash to projectPath if src doesn't start with one
+								const imageKey = src.startsWith("/")
+									? `${projectPath}${src}`
+									: `${projectPath}/${src}`;
 
 								console.log(`Fetching image from S3: ${imageKey}`);
 
@@ -175,6 +179,11 @@ export default async function handler(req, res) {
 						name: lo.name,
 						success: true,
 						images: uniqueImgTags,
+						stats: {
+							total: uniqueImgTags.length,
+							successful: uniqueImgTags.filter((img) => img.success).length,
+							failed: uniqueImgTags.filter((img) => !img.success).length,
+						},
 					};
 				} catch (error) {
 					console.error(`Error processing LO ${lo.name}:`, error);

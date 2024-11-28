@@ -109,11 +109,36 @@ export class UIHandler {
 				gradeLevel: formData.get("gradeLevel"),
 			});
 
+			console.log("API Response:", result); // Debug the entire response
+			console.log("Response data type:", typeof result.data); // Check data type
+			console.log("Response data:", result.data); // See the actual data
+
+			// Calculate totals from all LOs in the results array
+			const stats = {
+				total: 0,
+				successful: 0,
+				failed: 0,
+			};
+
+			// Access the results array and sum up stats from each LO
+			if (result.data.results && result.data.results.length > 0) {
+				result.data.results.forEach((lo) => {
+					if (lo.stats) {
+						stats.total += lo.stats.total;
+						stats.successful += lo.stats.successful;
+						stats.failed += lo.stats.failed;
+					}
+				});
+			}
+
+			console.log("Calculated stats:", stats);
+
 			this.data = result.data;
 			this.uiStateManager.updateUI({
 				message: "Alt text generated successfully!",
 				status: "success",
 				data: result.data,
+				stats: stats,
 			});
 		} catch (error) {
 			console.error("Error:", error);

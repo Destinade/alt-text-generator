@@ -239,6 +239,7 @@ export default async function handler(req, res) {
 			);
 
 			console.log("All images processed");
+			console.log("Total images found:", uniqueImgTags.length);
 			console.log("Successful images:", processedImages.length);
 			console.log("Failed images:", failedImages.length);
 

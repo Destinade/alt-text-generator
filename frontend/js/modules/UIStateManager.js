@@ -3,41 +3,80 @@ export class UIStateManager {
 		this.elements = elements;
 	}
 
-	updateUI(state) {
-		this.elements.exportResult.innerHTML = `
-            <div class="result-summary ${state.status}">
-                <h3>${state.message}</h3>
-                ${this.getStatsHTML(state.data)}
-            </div>
-        `;
-		this.elements.exportResult.style.opacity = "1";
-		this.updateActionButtons(state);
-	}
+	updateUI({ message, status, data, stats }) {
+		const resultDiv = document.getElementById("exportResult");
+		if (!resultDiv) return;
 
-	getStatsHTML(data) {
-		if (!data) return "";
-		return `
-            <div class="stats">
-                <p>Total images: ${data.stats.total}</p>
-                <p>Successfully processed: ${data.stats.successful}</p>
-                <p>Failed: ${data.stats.failed}</p>
-            </div>
-        `;
-	}
+		resultDiv.innerHTML = "";
 
-	updateActionButtons(state) {
-		if (this.elements.exportActions) {
-			this.elements.exportActions.style.display =
-				state.status === "success" && state.data?.stats.successful > 0
-					? "flex"
-					: "none";
-		}
+		if (status === "success" && data) {
+			const statsHtml = `
+				<div class="stats-summary">
+					<h3>Processing Summary</h3>
+					<div class="stats-grid">
+						<div class="stat-item">
+							<span class="stat-label">Total images:</span>
+							<span class="stat-value">${stats.total}</span>
+						</div>
+						<div class="stat-item">
+							<span class="stat-label">Successfully processed:</span>
+							<span class="stat-value ${stats.successful === stats.total ? "success" : ""}">${
+				stats.successful
+			}</span>
+						</div>
+						<div class="stat-item">
+							<span class="stat-label">Failed:</span>
+							<span class="stat-value ${stats.failed > 0 ? "error" : ""}">${
+				stats.failed
+			}</span>
+						</div>
+					</div>
+				</div>
+			`;
 
-		if (this.elements.downloadBtn) {
-			this.elements.downloadBtn.disabled = false;
-		}
-		if (this.elements.emailBtn) {
-			this.elements.emailBtn.disabled = false;
+			const tableHtml = data.results
+				? `
+				<div class="results-table-wrapper">
+					<table class="results-table">
+						<thead>
+							<tr>
+								<th>Learning Object</th>
+								<th>Status</th>
+								<th>Images</th>
+								<th>Success Rate</th>
+							</tr>
+						</thead>
+						<tbody>
+							${data.results
+								.map(
+									(lo) => `
+								<tr>
+									<td class="lo-name">${lo.name}</td>
+									<td class="status ${lo.success ? "success" : "error"}">
+										${lo.success ? "✓ Success" : "✗ Failed"}
+									</td>
+									<td class="image-count">${lo.stats.total}</td>
+									<td class="success-rate">
+										${Math.round((lo.stats.successful / lo.stats.total) * 100)}%
+									</td>
+								</tr>
+							`
+								)
+								.join("")}
+						</tbody>
+					</table>
+				</div>
+			`
+				: "";
+
+			resultDiv.innerHTML = `
+				<div class="export-results">
+					${statsHtml}
+					${tableHtml}
+				</div>
+			`;
+		} else {
+			resultDiv.innerHTML = `<p class="${status}">${message}</p>`;
 		}
 	}
 
