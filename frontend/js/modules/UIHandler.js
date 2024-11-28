@@ -24,8 +24,14 @@ export class UIHandler {
 	async init() {
 		this.loaderManager.show();
 		this.eventManager.setup();
-		await this.loadProjects();
-		await this.loaderManager.hide();
+		try {
+			await this.loadProjects();
+			await this.loaderManager.hide();
+		} catch (error) {
+			console.error("Error during initialization:", error);
+			this.loaderManager.showError("Failed to load projects");
+			// Don't hide the loader when there's an error
+		}
 	}
 
 	async loadProjects() {
@@ -34,12 +40,14 @@ export class UIHandler {
 
 		try {
 			const projects = await APIService.fetchProjects();
+			if (!projects || projects.length === 0) {
+				throw new Error("No projects available");
+			}
 			this.projects = projects;
 			this.listManager.populateProjectSelect(projects);
 		} catch (error) {
 			console.error("Error loading projects:", error);
-			this.uiStateManager.showError("Failed to load projects");
-			select.innerHTML = '<option value="">Error loading projects</option>';
+			throw new Error("Unable to load projects. Please try again later.");
 		} finally {
 			select.disabled = false;
 		}
@@ -53,6 +61,14 @@ export class UIHandler {
 			return;
 		}
 
+		// Show loading state
+		const loList = this.elements.loList;
+		loList.innerHTML = `
+			<div class="lo-loading">
+				<div class="lo-loading-spinner"></div>
+			</div>
+		`;
+
 		try {
 			const los = await APIService.fetchLearningObjects(projectId);
 			this.currentLOs = los;
@@ -60,6 +76,9 @@ export class UIHandler {
 		} catch (error) {
 			console.error("Error loading LOs:", error);
 			this.uiStateManager.showError("Failed to load Learning Objects");
+			loList.innerHTML = `
+				<div class="no-los-message">Error loading Learning Objects</div>
+			`;
 		}
 	}
 
