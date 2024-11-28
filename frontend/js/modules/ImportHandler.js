@@ -56,43 +56,35 @@ export class ImportHandler {
 		formData.append("file", file);
 
 		try {
-			console.log(
-				"Making API call to:",
-				`${APIService.BASE_URL}/import-alt-text`
-			);
 			const response = await fetch(`${APIService.BASE_URL}/import-alt-text`, {
 				method: "POST",
 				body: formData,
 			});
 			console.log("API response status:", response.status);
 
-			const reader = response.body.getReader();
-			const decoder = new TextDecoder();
+			const responseData = await response.json();
+			console.log("Response data:", responseData);
 
-			while (true) {
-				const { value, done } = await reader.read();
-				if (done) break;
-
-				const events = decoder.decode(value).split("\n\n");
-				for (const event of events) {
-					if (!event.trim()) continue;
-
-					const data = JSON.parse(event.replace("data: ", ""));
-
-					switch (data.type) {
-						case "progress":
-							this.updateProgress(data);
-							break;
-						case "complete":
-							this.showResults(data);
-							break;
-						case "error":
-							this.showError(data.error);
-							break;
-					}
+			if (responseData.success) {
+				this.showResults({
+					filesProcessed: responseData.totalProcessed || 0,
+					imagesUpdated: responseData.altTextData?.length || 0,
+				});
+			} else {
+				// Enhanced error handling
+				if (responseData.errorSummary?.errors?.validation) {
+					const validationErrors = responseData.errorSummary.errors.validation
+						.map((error) => `• ${error.message}`)
+						.join("\n");
+					this.showError(
+						`File validation failed:\n${validationErrors}\n\nPlease ensure all required metadata fields are filled in the Excel file.`
+					);
+				} else {
+					this.showError(responseData.error || "Failed to process file");
 				}
 			}
 		} catch (error) {
+			console.error("Import error:", error);
 			this.showError("Failed to process file: " + error.message);
 		} finally {
 			this.hideLoading();
@@ -137,7 +129,7 @@ export class ImportHandler {
 		this.importResult.innerHTML = `
 			<div class="error">
 				<h3>Error</h3>
-				<p>${message}</p>
+				<p style="white-space: pre-line">${message}</p>
 			</div>
 		`;
 	}

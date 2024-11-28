@@ -11,7 +11,6 @@ document.addEventListener("DOMContentLoaded", () => {
 		exportActions: document.getElementById("exportActions"),
 		downloadBtn: document.getElementById("downloadBtn"),
 		emailBtn: document.getElementById("emailBtn"),
-		// Add these elements for import functionality
 		importForm: document.getElementById("importForm"),
 		importFile: document.getElementById("importFile"),
 		importResult: document.getElementById("importResult"),

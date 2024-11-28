@@ -5,30 +5,43 @@ export async function parseExcelFile(buffer) {
 		const workbook = new ExcelJS.Workbook();
 		await workbook.xlsx.load(buffer);
 
-		const worksheet = workbook.getWorksheet(1); // Get first worksheet
+		const worksheet = workbook.getWorksheet(1);
 
-		// Extract metadata from first rows
+		// Extract metadata with new defaults
 		const metadata = {
-			loId: worksheet.getCell("B1").value,
-			gradeLevel: worksheet.getCell("B2").value,
-			relativeLink: worksheet.getCell("B3").value,
-			generatedDate: worksheet.getCell("B4").value,
+			gradeLevel: (worksheet.getCell("B1").value || "6").toString(),
+			relativeLink: worksheet.getCell("B2").value?.toString() || "",
+			generatedDate: new Date(),
 		};
 
-		// Start processing from row 9 (after headers)
+		// Clean up the relative link format
+		if (metadata.relativeLink) {
+			metadata.relativeLink = metadata.relativeLink
+				.replace("https://edwincontent.nelsontechdev.com", "")
+				.replace("@", "")
+				.trim();
+
+			if (!metadata.relativeLink.startsWith("/")) {
+				metadata.relativeLink = "/" + metadata.relativeLink;
+			}
+		}
+
+		// Process alt text data starting from row 8
 		const altTextData = [];
 		let currentRow = 9;
 
 		while (worksheet.getCell(`A${currentRow}`).value) {
 			const row = {
-				loTitle: worksheet.getCell(`A${currentRow}`).value,
-				imageSource: worksheet.getCell(`B${currentRow}`).value,
-				generatedAltText: worksheet.getCell(`C${currentRow}`).value,
-				editedAltText: worksheet.getCell(`D${currentRow}`).value,
+				loTitle: worksheet.getCell(`A${currentRow}`).value?.toString() || "",
+				imageSource:
+					worksheet.getCell(`B${currentRow}`).value?.toString() || "",
+				generatedAltText:
+					worksheet.getCell(`C${currentRow}`).value?.toString() || "",
+				editedAltText:
+					worksheet.getCell(`D${currentRow}`).value?.toString() || "",
 				isDecorative: worksheet.getCell(`E${currentRow}`).value === "TRUE",
 			};
 
-			// Only include rows that have edited alt text or are marked as decorative
 			if (row.editedAltText || row.isDecorative) {
 				altTextData.push(row);
 			}

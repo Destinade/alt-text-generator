@@ -2,29 +2,19 @@ export class ValidationService {
 	constructor() {
 		this.validationRules = {
 			metadata: {
-				loId: {
-					required: true,
-					type: "string",
-					validate: (value) => value.trim().length > 0,
-					message: "LO ID is required and must be a non-empty string",
-				},
 				gradeLevel: {
-					required: true,
 					type: "string",
-					validate: (value) => value.trim().length > 0,
-					message: "Grade level is required",
+					required: false,
+					default: "6",
 				},
 				relativeLink: {
-					required: true,
 					type: "string",
-					validate: (value) => value.startsWith("/"),
-					message: "Relative link must start with /",
+					required: true,
 				},
 				generatedDate: {
-					required: true,
-					type: "string",
-					validate: (value) => !isNaN(Date.parse(value)),
-					message: "Generated date must be a valid date",
+					type: "date",
+					required: false,
+					default: () => new Date(),
 				},
 			},
 			altTextData: {
@@ -74,10 +64,7 @@ export class ValidationService {
 		if (!data.metadata) {
 			errors.push("Missing metadata section");
 		} else {
-			const metadataErrors = this.validateSection(
-				data.metadata,
-				this.validationRules.metadata
-			);
+			const metadataErrors = this.validateMetadata(data.metadata);
 			errors.push(...metadataErrors);
 		}
 
@@ -103,6 +90,46 @@ export class ValidationService {
 		};
 	}
 
+	validateMetadata(metadata) {
+		const errors = [];
+
+		// Grade level validation (optional, defaults to 6)
+		if (metadata.gradeLevel && !this.isValidGradeLevel(metadata.gradeLevel)) {
+			errors.push({
+				message: "Invalid grade level format",
+				timestamp: new Date(),
+				details: null,
+			});
+		}
+
+		// Relative link validation (project directory)
+		if (!metadata.relativeLink) {
+			errors.push({
+				message: "Project directory link is required",
+				timestamp: new Date(),
+				details: null,
+			});
+		}
+
+		return errors;
+	}
+
+	isValidGradeLevel(grade) {
+		// Accept numeric values or strings like "grade 6", "6", etc.
+		if (typeof grade === "number") return true;
+		if (typeof grade === "string") {
+			const normalized = grade.toLowerCase().replace("grade", "").trim();
+			return !isNaN(normalized);
+		}
+		return false;
+	}
+
+	isValidDate(date) {
+		if (!date) return false;
+		const parsed = new Date(date);
+		return parsed instanceof Date && !isNaN(parsed);
+	}
+
 	validateSection(data, rules, prefix = "") {
 		const errors = [];
 
@@ -120,8 +147,18 @@ export class ValidationService {
 				continue;
 			}
 
-			// Type checking
-			if (rule.type && typeof value !== rule.type) {
+			// Special handling for date type
+			if (rule.type === "date") {
+				if (!(value instanceof Date) && !this.isValidDate(value)) {
+					errors.push(
+						`${prefix ? prefix + ": " : ""}${field} must be a valid date`
+					);
+				}
+				continue;
+			}
+
+			// Type checking for non-date types
+			if (rule.type && rule.type !== "date" && typeof value !== rule.type) {
 				errors.push(
 					`${prefix ? prefix + ": " : ""}${field} must be of type ${rule.type}`
 				);

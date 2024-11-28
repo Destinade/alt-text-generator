@@ -7,15 +7,14 @@ export async function generateExcel(data) {
 		const workbook = new ExcelJS.Workbook();
 		const worksheet = workbook.addWorksheet("Alt Text Review");
 
-		// Add metadata
-		worksheet.getCell("A1").value = "LO ID:";
-		worksheet.getCell("B1").value = data.loId;
-		worksheet.getCell("A2").value = "Grade Level:";
-		worksheet.getCell("B2").value = data.gradeLevel;
-		worksheet.getCell("A3").value = "Link:";
-		worksheet.getCell("B3").value = data.relativeLink;
-		worksheet.getCell("A4").value = "Generated:";
-		worksheet.getCell("B4").value = new Date().toLocaleString("en-US", {
+		// Add metadata (updated format)
+		worksheet.getCell("A1").value = "Grade Level:";
+		worksheet.getCell("B1").value = "6"; // Default to grade 6
+		worksheet.getCell("A2").value = "Link:";
+		worksheet.getCell("B2").value =
+			"@https://edwincontent.nelsontechdev.com/Ian_test/"; // Project directory
+		worksheet.getCell("A3").value = "Generated:";
+		worksheet.getCell("B3").value = new Date().toLocaleString("en-US", {
 			year: "numeric",
 			month: "long",
 			day: "numeric",
@@ -25,14 +24,14 @@ export async function generateExcel(data) {
 		});
 
 		// Style metadata section as readonly
-		["A1", "B1", "A2", "B2", "A3", "B3", "A4", "B4"].forEach((cell) => {
+		["A1", "B1", "A2", "B2", "A3", "B3"].forEach((cell) => {
 			worksheet.getCell(cell).fill = {
 				type: "pattern",
 				pattern: "solid",
 				fgColor: { argb: "F5F5F5" },
 			};
 			worksheet.getCell(cell).font = {
-				color: { argb: "000000" }, // Changed to black for better contrast
+				color: { argb: "000000" },
 			};
 			worksheet.getCell(cell).border = null;
 		});
@@ -43,7 +42,7 @@ export async function generateExcel(data) {
 			"Gray cells are read-only. White cells are editable.";
 		worksheet.getCell("B6").font = {
 			italic: true,
-			color: { argb: "000000" }, // Changed to black
+			color: { argb: "000000" },
 		};
 
 		// Headers (now at row 8)
@@ -53,7 +52,7 @@ export async function generateExcel(data) {
 		worksheet.getCell("D8").value = "Edited Alt Text";
 		worksheet.getCell("E8").value = "Is Decorative";
 
-		// Style headers (without borders)
+		// Style headers
 		["A8", "B8", "C8", "D8", "E8"].forEach((cell) => {
 			worksheet.getCell(cell).fill = {
 				type: "pattern",
@@ -67,7 +66,7 @@ export async function generateExcel(data) {
 			worksheet.getCell(cell).border = null;
 		});
 
-		// Set column widths and make them resizable
+		// Set column widths
 		worksheet.columns = [
 			{ width: 40 }, // LO Title
 			{ width: 50 }, // Image Source
@@ -80,22 +79,6 @@ export async function generateExcel(data) {
 			width: col.width,
 		}));
 
-		// Make all columns resizable
-		worksheet.views = [
-			{
-				state: "normal",
-				showGridLines: true,
-				zoomScale: 100,
-				zoomScaleNormal: 100,
-				rightToLeft: false,
-			},
-		];
-
-		// Enable column properties
-		worksheet.properties.defaultColWidth = 12;
-		worksheet.properties.outlineLevelCol = 0;
-		worksheet.properties.outlineLevelRow = 0;
-
 		// Add data starting at row 9
 		let currentRow = 9;
 
@@ -105,14 +88,13 @@ export async function generateExcel(data) {
 				result.images.forEach((image) => {
 					const row = worksheet.getRow(currentRow);
 
-					// Set values in correct order
 					row.getCell(1).value = result.name; // LO Title (Column A)
 					row.getCell(2).value = image.url; // Image Source (Column B)
 					row.getCell(3).value = image.altText || ""; // Generated Alt Text (Column C)
 					row.getCell(4).value = ""; // Empty Edited Alt Text (Column D)
 					row.getCell(5).value = false; // Is Decorative (Column E)
 
-					// Style read-only cells (without borders)
+					// Style read-only cells
 					["A", "B", "C"].forEach((col) => {
 						const cell = worksheet.getCell(`${col}${currentRow}`);
 						cell.fill = {
@@ -121,8 +103,6 @@ export async function generateExcel(data) {
 							fgColor: { argb: "F5F5F5" },
 						};
 						cell.border = null;
-
-						// Add word wrap and top alignment to all read-only columns
 						cell.alignment = {
 							vertical: "top",
 							horizontal: "left",
@@ -130,16 +110,16 @@ export async function generateExcel(data) {
 						};
 					});
 
-					// Style Edited Alt Text column
-					const editedAltTextCell = worksheet.getCell(`D${currentRow}`);
-					editedAltTextCell.fill = null;
-					editedAltTextCell.alignment = {
-						vertical: "top",
-						horizontal: "left",
-						wrapText: true,
-					};
-
-					row.height = 60; // Set row height to accommodate wrapped text
+					// Style editable cells
+					["D", "E"].forEach((col) => {
+						const cell = worksheet.getCell(`${col}${currentRow}`);
+						cell.fill = null;
+						cell.alignment = {
+							vertical: "top",
+							horizontal: "left",
+							wrapText: true,
+						};
+					});
 
 					// Add data validation for decorative column
 					worksheet.getCell(`E${currentRow}`).dataValidation = {
@@ -148,42 +128,10 @@ export async function generateExcel(data) {
 						formulae: ['"TRUE,FALSE"'],
 					};
 
+					row.height = 60; // Set row height
 					currentRow++;
 				});
 			}
-		});
-
-		// Protect worksheet with specific cell exceptions
-		worksheet.protect("password123", {
-			selectLockedCells: true,
-			selectUnlockedCells: true,
-			formatCells: false,
-			formatColumns: false,
-			formatRows: false,
-			insertColumns: false,
-			insertRows: false,
-			insertHyperlinks: false,
-			deleteColumns: false,
-			deleteRows: false,
-			sort: false,
-			autoFilter: false,
-			pivotTables: false,
-		});
-
-		// Lock all cells by default
-		worksheet.eachRow((row) => {
-			row.eachCell((cell) => {
-				cell.protection = { locked: true };
-			});
-		});
-
-		// Unlock specific columns (Edited Alt Text and Is Decorative)
-		data.results.forEach((_, index) => {
-			const rowIndex = index + 9;
-			// Unlock Edited Alt Text cell
-			worksheet.getCell(`C${rowIndex}`).protection = { locked: false };
-			// Unlock Is Decorative cell
-			worksheet.getCell(`D${rowIndex}`).protection = { locked: false };
 		});
 
 		// Generate buffer

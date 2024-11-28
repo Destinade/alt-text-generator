@@ -13,10 +13,9 @@ export class StandardizationService {
 
 	standardizeMetadata(metadata) {
 		return {
-			loId: this.standardizeString(metadata.loId),
-			gradeLevel: this.standardizeGradeLevel(metadata.gradeLevel),
+			gradeLevel: this.standardizeGradeLevel(metadata.gradeLevel || "6"),
 			relativeLink: this.standardizePath(metadata.relativeLink),
-			generatedDate: this.standardizeDate(metadata.generatedDate),
+			generatedDate: this.standardizeDate(metadata.generatedDate || new Date()),
 		};
 	}
 
@@ -55,19 +54,10 @@ export class StandardizationService {
 		return path;
 	}
 
-	standardizeDate(date) {
-		if (!date) return "";
-
-		try {
-			// Handle different date formats
-			const parsedDate = new Date(date);
-			if (isNaN(parsedDate.getTime())) return "";
-
-			// Return ISO format date string
-			return parsedDate.toISOString().split("T")[0];
-		} catch {
-			return "";
-		}
+	standardizeDate(value) {
+		if (!value) return new Date();
+		const date = new Date(value);
+		return isNaN(date) ? new Date() : date;
 	}
 
 	standardizeGradeLevel(gradeLevel) {
