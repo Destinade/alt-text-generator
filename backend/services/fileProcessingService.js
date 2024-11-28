@@ -1,192 +1,116 @@
-import { parseExcelFile } from "./excelParser.js";
-import { parseJsonFile } from "./jsonParser.js";
 import { ValidationService } from "./validationService.js";
 import { StandardizationService } from "./standardizationService.js";
-import { ErrorCollectionService } from "./errorCollectionService.js";
+import { FileUpdateService } from "./fileUpdateService.js";
+import { parseExcelFile } from "./excelParser.js";
+import * as fs from "fs";
 
 export class FileProcessingService {
 	constructor() {
 		this.validator = new ValidationService();
 		this.standardizer = new StandardizationService();
-		this.errorCollector = new ErrorCollectionService();
-		this.supportedTypes = {
-			"application/vnd.openxmlformats-officedocument.spreadsheetml.sheet":
-				"excel",
-			"application/json": "json",
-		};
-		this.batchSize = 100; // Process 100 records at a time
+		this.fileUpdater = new FileUpdateService();
 	}
 
-	async processFile(file, progressCallback = null) {
-		this.errorCollector.clear();
-		this.errorCollector.startProcessing();
-
+	async processFile(file) {
 		try {
-			const fileType = this.getFileType(file);
-			if (!fileType) {
-				this.errorCollector.addError(
-					"critical",
-					"Unsupported file type. Please upload an Excel (.xlsx) or JSON file."
-				);
-				return this.getErrorResponse();
+			console.log("Starting file processing:", {
+				filename: file.originalFilename,
+				filepath: file.filepath,
+				mimetype: file.mimetype,
+			});
+
+			// Read file buffer
+			const buffer = await fs.promises.readFile(file.filepath);
+			console.log("File buffer size:", buffer.length);
+
+			const data = await parseExcelFile(buffer);
+			console.log("Excel parsing result:", {
+				success: data.success,
+				metadataPresent: !!data.metadata,
+				altTextCount: data.altTextData?.length || 0,
+				error: data.error,
+			});
+
+			if (!data.success) {
+				return {
+					success: false,
+					errorSummary: {
+						processingTime: 0,
+						totalProcessed: 0,
+						successCount: 0,
+						failureCount: 1,
+						errorCounts: { validation: 1 },
+						errors: {
+							validation: [
+								{
+									message: data.error,
+									timestamp: new Date().toISOString(),
+									details: null,
+								},
+							],
+						},
+					},
+				};
 			}
 
-			const buffer = await this.readFileBuffer(file);
-			const rawData = await this.parseFile(fileType, buffer);
+			const standardizedData = this.standardizer.standardizeData(data);
+			console.log("Standardized data:", {
+				metadataPresent: !!standardizedData.metadata,
+				altTextCount: standardizedData.altTextData?.length || 0,
+			});
 
-			// Process metadata
-			const standardizedMetadata = this.standardizer.standardizeMetadata(
-				rawData.metadata
-			);
-			const metadataValidation = this.validator.validateSection(
-				standardizedMetadata,
-				this.validator.validationRules.metadata
-			);
+			const validationResult = this.validator.validateData(standardizedData);
+			console.log("Validation result:", validationResult);
 
-			if (metadataValidation.length > 0) {
-				metadataValidation.forEach((error) => {
-					this.errorCollector.addError("validation", error);
-				});
+			if (!validationResult.valid) {
+				return {
+					success: false,
+					errorSummary: {
+						processingTime: 0,
+						totalProcessed: 0,
+						successCount: 0,
+						failureCount: validationResult.errors.length,
+						errorCounts: {
+							validation: validationResult.errors.length,
+						},
+						errors: {
+							validation: validationResult.errors.map((error) => ({
+								message: error,
+								timestamp: new Date(),
+								details: null,
+							})),
+						},
+					},
+				};
 			}
 
-			// Process data in batches
-			const processedData = await this.processBatches(
-				rawData.altTextData,
-				progressCallback
+			// Update files with new alt text
+			console.log("Starting file updates with:", {
+				metadata: standardizedData.metadata,
+				altTextCount: standardizedData.altTextData.length,
+			});
+
+			const updateResults = await this.fileUpdater.updateFiles(
+				standardizedData.metadata,
+				standardizedData.altTextData
 			);
 
-			this.errorCollector.endProcessing();
+			console.log("File update results:", updateResults);
 
 			return {
-				success: !this.errorCollector.hasErrors(),
-				metadata: standardizedMetadata,
-				altTextData: processedData,
-				totalProcessed: processedData.length,
-				errorSummary: this.errorCollector.getErrorSummary(),
+				success: updateResults.success,
+				metadata: standardizedData.metadata,
+				altTextData: standardizedData.altTextData,
+				totalProcessed: updateResults.filesProcessed,
+				updateSummary: {
+					filesProcessed: updateResults.filesProcessed,
+					updatedFiles: updateResults.updatedFiles,
+					errors: updateResults.errors,
+				},
 			};
 		} catch (error) {
-			this.errorCollector.addError("critical", "Failed to process file", error);
-			return this.getErrorResponse();
+			console.error("Error in processFile:", error);
+			throw new Error(`Failed to process file: ${error.message}`);
 		}
-	}
-
-	async processBatches(data, progressCallback = null) {
-		const processedData = [];
-		const totalBatches = Math.ceil(data.length / this.batchSize);
-
-		for (let i = 0; i < totalBatches; i++) {
-			const start = i * this.batchSize;
-			const end = Math.min(start + this.batchSize, data.length);
-			const batch = data.slice(start, end);
-
-			// Process batch
-			const processedBatch = await this.processBatch(batch);
-			processedData.push(...processedBatch);
-
-			// Report progress
-			if (progressCallback) {
-				const progress = Math.round(((i + 1) / totalBatches) * 100);
-				await progressCallback({
-					processed: processedData.length,
-					total: data.length,
-					progress,
-				});
-			}
-
-			// Small delay to prevent blocking
-			await new Promise((resolve) => setTimeout(resolve, 0));
-		}
-
-		return processedData;
-	}
-
-	async processBatch(batch) {
-		return batch
-			.map((item) => {
-				try {
-					const standardized = this.standardizer.standardizeAltTextData([
-						item,
-					])[0];
-					const validation = this.validator.validateSection(
-						standardized,
-						this.validator.validationRules.altTextData
-					);
-
-					if (validation.length > 0) {
-						validation.forEach((error) => {
-							this.errorCollector.addError("validation", error, {
-								item: item.imageSource,
-							});
-						});
-						return null;
-					}
-
-					this.errorCollector.incrementSuccess();
-					return standardized;
-				} catch (error) {
-					this.errorCollector.addError(
-						"warning",
-						`Failed to process item: ${item.imageSource}`,
-						error
-					);
-					return null;
-				}
-			})
-			.filter((item) => item !== null);
-	}
-
-	async parseFile(fileType, buffer) {
-		switch (fileType) {
-			case "excel":
-				return await parseExcelFile(buffer);
-			case "json":
-				return await parseJsonFile(buffer);
-			default:
-				throw new Error("Unsupported file type");
-		}
-	}
-
-	getFileType(file) {
-		// Check MIME type
-		const mimeType = file.mimetype;
-		if (this.supportedTypes[mimeType]) {
-			return this.supportedTypes[mimeType];
-		}
-
-		// Fallback to extension check
-		const fileName = file.originalFilename.toLowerCase();
-		const extension = fileName.split(".").pop();
-
-		if (extension === "xlsx") return "excel";
-		if (extension === "json") return "json";
-
-		return null;
-	}
-
-	async readFileBuffer(file) {
-		try {
-			// For formidable files
-			if (file.filepath) {
-				const fs = await import("fs/promises");
-				return await fs.readFile(file.filepath);
-			}
-
-			// For raw buffers
-			if (Buffer.isBuffer(file)) {
-				return file;
-			}
-
-			throw new Error("Invalid file format");
-		} catch (error) {
-			throw new Error(`Failed to read file: ${error.message}`);
-		}
-	}
-
-	getErrorResponse() {
-		this.errorCollector.endProcessing();
-		return {
-			success: false,
-			errorSummary: this.errorCollector.getErrorSummary(),
-		};
 	}
 }

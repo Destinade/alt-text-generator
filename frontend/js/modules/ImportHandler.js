@@ -74,7 +74,7 @@ export class ImportHandler {
 				// Enhanced error handling
 				if (responseData.errorSummary?.errors?.validation) {
 					const validationErrors = responseData.errorSummary.errors.validation
-						.map((error) => `• ${error.message}`)
+						.map((error) => `• ${error.message.message || error.message}`)
 						.join("\n");
 					this.showError(
 						`File validation failed:\n${validationErrors}\n\nPlease ensure all required metadata fields are filled in the Excel file.`
@@ -131,6 +131,43 @@ export class ImportHandler {
 				<h3>Error</h3>
 				<p style="white-space: pre-line">${message}</p>
 			</div>
+		`;
+	}
+
+	showProgress(current, total) {
+		const progressBar = document.createElement("div");
+		progressBar.className = "progress-bar";
+		progressBar.innerHTML = `
+			<div class="progress" style="width: ${(current / total) * 100}%"></div>
+			<div class="status">Processing ${current} of ${total} files</div>
+		`;
+		this.resultDiv.appendChild(progressBar);
+	}
+
+	showDetailedResults(results) {
+		const summary = document.createElement("div");
+		summary.className = "import-summary";
+		summary.innerHTML = `
+			<h3>Import Complete</h3>
+			<div class="stats">
+				<div>Files Processed: ${results.filesProcessed}</div>
+				<div>Images Updated: ${results.imagesUpdated}</div>
+				<div>Success Rate: ${((results.success / results.total) * 100).toFixed(
+					1
+				)}%</div>
+			</div>
+			${
+				results.errors.length
+					? `
+				<div class="errors">
+					<h4>Errors (${results.errors.length})</h4>
+					<ul>
+						${results.errors.map((e) => `<li>${e.message}</li>`).join("")}
+					</ul>
+				</div>
+			`
+					: ""
+			}
 		`;
 	}
 }

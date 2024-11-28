@@ -6,11 +6,17 @@ export async function parseExcelFile(buffer) {
 		await workbook.xlsx.load(buffer);
 
 		const worksheet = workbook.getWorksheet(1);
+		console.log("Found worksheet:", worksheet.name);
+
+		// Handle hyperlink cell properly
+		const linkCell = worksheet.getCell("B2");
+		const relativeLink =
+			linkCell.value?.text || linkCell.value?.toString() || "";
 
 		// Extract metadata with new defaults
 		const metadata = {
 			gradeLevel: (worksheet.getCell("B1").value || "6").toString(),
-			relativeLink: worksheet.getCell("B2").value?.toString() || "",
+			relativeLink: relativeLink,
 			generatedDate: new Date(),
 		};
 
@@ -26,9 +32,35 @@ export async function parseExcelFile(buffer) {
 			}
 		}
 
-		// Process alt text data starting from row 8
+		console.log("Processed metadata:", metadata);
+
+		// Log metadata values being read
+		console.log("Reading metadata:", {
+			gradeLevel: worksheet.getCell("B1").value,
+			relativeLink: worksheet.getCell("B2").value,
+			generatedDate: worksheet.getCell("B3").value,
+		});
+
+		// Process alt text data starting from row 8 (headers) and 9 (data)
+		console.log("Headers at row 8:", {
+			A: worksheet.getCell("A8").value,
+			B: worksheet.getCell("B8").value,
+			C: worksheet.getCell("C8").value,
+			D: worksheet.getCell("D8").value,
+			E: worksheet.getCell("E8").value,
+		});
+
 		const altTextData = [];
 		let currentRow = 9;
+
+		// Read first row of data to debug
+		console.log("First data row (row 9):", {
+			A: worksheet.getCell(`A9`).value,
+			B: worksheet.getCell(`B9`).value,
+			C: worksheet.getCell(`C9`).value,
+			D: worksheet.getCell(`D9`).value,
+			E: worksheet.getCell(`E9`).value,
+		});
 
 		while (worksheet.getCell(`A${currentRow}`).value) {
 			const row = {
@@ -42,6 +74,8 @@ export async function parseExcelFile(buffer) {
 				isDecorative: worksheet.getCell(`E${currentRow}`).value === "TRUE",
 			};
 
+			console.log(`Processing row ${currentRow}:`, row);
+
 			if (row.editedAltText || row.isDecorative) {
 				altTextData.push(row);
 			}
@@ -49,16 +83,22 @@ export async function parseExcelFile(buffer) {
 			currentRow++;
 		}
 
+		console.log("Total rows processed:", currentRow - 9);
+		console.log("Alt text data collected:", altTextData);
+
 		return {
 			success: true,
-			metadata,
-			altTextData,
+			metadata: metadata,
+			altTextData: altTextData,
 			totalProcessed: altTextData.length,
 		};
 	} catch (error) {
 		console.error("Error parsing Excel file:", error);
+		console.error("Error details:", error.stack);
 		return {
 			success: false,
+			metadata: {},
+			altTextData: [],
 			error:
 				"Failed to parse Excel file. Please ensure it matches the expected format.",
 		};
