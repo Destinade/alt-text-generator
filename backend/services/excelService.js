@@ -11,8 +11,9 @@ export async function generateExcel(data) {
 		worksheet.getCell("A1").value = "Grade Level:";
 		worksheet.getCell("B1").value = "6"; // Default to grade 6
 		worksheet.getCell("A2").value = "Link:";
-		worksheet.getCell("B2").value =
-			"@https://edwincontent.nelsontechdev.com/Ian_test/"; // Project directory
+		worksheet.getCell(
+			"B2"
+		).value = `@https://edwincontent.nelsontechdev.com/${data.projectId}/`;
 		worksheet.getCell("A3").value = "Generated:";
 		worksheet.getCell("B3").value = new Date().toLocaleString("en-US", {
 			year: "numeric",

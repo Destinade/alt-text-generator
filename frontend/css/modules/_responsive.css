@@ -1,6 +1,7 @@
 @media (min-width: 1200px) {
     .content {
         padding: var(--spacing-xl) var(--spacing-lg);
+		padding-bottom: 10rem;
     }
 }
 

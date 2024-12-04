@@ -13,14 +13,12 @@ export async function parseExcelFile(buffer) {
 		const relativeLink =
 			linkCell.value?.text || linkCell.value?.toString() || "";
 
-		// Extract metadata with new defaults
 		const metadata = {
 			gradeLevel: (worksheet.getCell("B1").value || "6").toString(),
 			relativeLink: relativeLink,
 			generatedDate: new Date(),
 		};
 
-		// Clean up the relative link format
 		if (metadata.relativeLink) {
 			metadata.relativeLink = metadata.relativeLink
 				.replace("https://edwincontent.nelsontechdev.com", "")
@@ -71,7 +69,7 @@ export async function parseExcelFile(buffer) {
 					worksheet.getCell(`C${currentRow}`).value?.toString() || "",
 				editedAltText:
 					worksheet.getCell(`D${currentRow}`).value?.toString() || "",
-				isDecorative: worksheet.getCell(`E${currentRow}`).value === "TRUE",
+				isDecorative: worksheet.getCell(`E${currentRow}`).value === true,
 			};
 
 			console.log(`Processing row ${currentRow}:`, row);

@@ -1,11 +1,30 @@
 import { APIService } from "./APIService.js";
 
 export class ImportHandler {
-	constructor(elements) {
-		this.importForm = elements.importForm;
-		this.importFile = elements.importFile;
-		this.importResult = elements.importResult;
-		this.setupEventListeners();
+	constructor() {
+		this.importForm = document.getElementById("importForm");
+		this.importFile = document.getElementById("importFile");
+		this.importResult = document.getElementById("importResult");
+
+		// Add click handler for the container
+		const fileUploadContainer = document.querySelector(
+			".file-upload-container"
+		);
+		if (fileUploadContainer) {
+			fileUploadContainer.addEventListener("click", (e) => {
+				// Prevent double triggering when clicking the input itself
+				if (e.target !== this.importFile) {
+					this.importFile.click();
+				}
+			});
+		}
+
+		this.importForm.addEventListener("submit", this.handleImport.bind(this));
+		this.importFile.addEventListener("change", () => {
+			if (this.importFile.files.length > 0) {
+				this.importForm.dispatchEvent(new Event("submit"));
+			}
+		});
 	}
 
 	setupEventListeners() {

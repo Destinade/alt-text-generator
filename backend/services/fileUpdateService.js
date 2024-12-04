@@ -44,13 +44,27 @@ export class FileUpdateService {
 						updatedHtml = this.updateImageInHtml(updatedHtml, image);
 
 						if (beforeUpdate === updatedHtml) {
-							// Image wasn't updated
-							results.imageResults.failed++;
-							results.imageResults.failedImages.push({
-								loTitle,
-								imageSource: image.imageSource,
-								error: "Failed to update image in HTML",
-							});
+							// Check if the alt text is already the same
+							const imgTagRegex = new RegExp(
+								`<img[^>]*src=["']\\/?${image.imageSource.replace(
+									/^\//,
+									""
+								)}["'][^>]*alt=["']${image.editedAltText}["'][^>]*>`,
+								"i"
+							);
+
+							if (imgTagRegex.test(beforeUpdate)) {
+								// Alt text is already the same, consider it a success
+								results.imageResults.successful++;
+							} else {
+								// Image wasn't updated due to other reasons
+								results.imageResults.failed++;
+								results.imageResults.failedImages.push({
+									loTitle,
+									imageSource: image.imageSource,
+									error: "Failed to update image in HTML",
+								});
+							}
 						} else {
 							results.imageResults.successful++;
 						}
@@ -74,9 +88,6 @@ export class FileUpdateService {
 			});
 		}
 
-		// Update overall success flag
-		results.success =
-			results.imageResults.failed === 0 && results.errors.length === 0;
 		return results;
 	}
 

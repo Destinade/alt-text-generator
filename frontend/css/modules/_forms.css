@@ -78,7 +78,8 @@ button:disabled {
     justify-content: center;
     padding: var(--spacing-xl);
     z-index: 3;
-    pointer-events: none;
+    pointer-events: all;
+    cursor: pointer;
 }
 
 .file-upload-container input[type="file"] {

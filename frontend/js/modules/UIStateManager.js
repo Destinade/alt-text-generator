@@ -28,24 +28,35 @@ export class UIStateManager {
 				actionsDiv.style.display = "flex";
 			}
 
+			const aggregatedStats = data.results.reduce(
+				(acc, lo) => ({
+					total: acc.total + lo.stats.total,
+					successful: acc.successful + lo.stats.successful,
+					failed: acc.failed + lo.stats.failed,
+				}),
+				{ total: 0, successful: 0, failed: 0 }
+			);
+
 			const statsHtml = `
 				<div class="stats-summary">
 					<h3>Processing Summary</h3>
 					<div class="stats-grid">
 						<div class="stat-item">
 							<span class="stat-label">Total images:</span>
-							<span class="stat-value">${stats.total}</span>
+							<span class="stat-value">${aggregatedStats.total}</span>
 						</div>
 						<div class="stat-item">
 							<span class="stat-label">Successfully processed:</span>
-							<span class="stat-value ${stats.successful === stats.total ? "success" : ""}">${
-				stats.successful
-			}</span>
+							<span class="stat-value ${
+								aggregatedStats.successful === aggregatedStats.total
+									? "success"
+									: ""
+							}">${aggregatedStats.successful}</span>
 						</div>
 						<div class="stat-item">
 							<span class="stat-label">Failed:</span>
-							<span class="stat-value ${stats.failed > 0 ? "error" : ""}">${
-				stats.failed
+							<span class="stat-value ${aggregatedStats.failed > 0 ? "error" : ""}">${
+				aggregatedStats.failed
 			}</span>
 						</div>
 					</div>
