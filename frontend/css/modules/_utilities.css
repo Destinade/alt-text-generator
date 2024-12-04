@@ -1,41 +1,50 @@
-.m-0 { margin: 0 }
-.mt-1 { margin-top: 0.25rem }
-.mb-1 { margin-bottom: 0.25rem }
-.ml-1 { margin-left: 0.25rem }
-.mr-1 { margin-right: 0.25rem }
-.p-0 { padding: 0 }
-.pt-1 { padding-top: 0.25rem }
-.pb-1 { padding-bottom: 0.25rem }
-.pl-1 { padding-left: 0.25rem }
-.pr-1 { padding-right: 0.25rem }
+.m-0 { margin: 0 !important; }
+.mt-1 { margin-top: var(--spacing-xs) !important; }
+.mb-1 { margin-bottom: var(--spacing-xs) !important; }
+.ml-1 { margin-left: var(--spacing-xs) !important; }
+.mr-1 { margin-right: var(--spacing-xs) !important; }
 
-.d-flex { display: flex }
-.justify-center { justify-content: center }
-.align-center { align-items: center }
-.flex-column { flex-direction: column }
+.p-0 { padding: 0 !important; }
+.pt-1 { padding-top: var(--spacing-xs) !important; }
+.pb-1 { padding-bottom: var(--spacing-xs) !important; }
+.pl-1 { padding-left: var(--spacing-xs) !important; }
+.pr-1 { padding-right: var(--spacing-xs) !important; }
 
-.text-center { text-align: center }
-.text-right { text-align: right }
-.text-left { text-align: left }
-.text-bold { font-weight: bold }
-.text-italic { font-style: italic }
+.d-flex { display: flex !important; }
+.justify-center { justify-content: center !important; }
+.justify-between { justify-content: space-between !important; }
+.align-center { align-items: center !important; }
+.flex-column { flex-direction: column !important; }
+.flex-wrap { flex-wrap: wrap !important; }
+.flex-grow-1 { flex-grow: 1 !important; }
 
-.hidden { display: none }
-.visible { display: block }
-
-.bg-primary { background-color: var(--primary-color) }
-.bg-secondary { background-color: var(--secondary-color) }
-.bg-accent { background-color: var(--accent-color) }
-
-.border { border: 1px solid var(--light-accent-color) }
-.border-radius { border-radius: 4px }
-
-.visible {
-    opacity: 1 ;
-    visibility: visible ;
-}
+.text-center { text-align: center !important; }
+.text-right { text-align: right !important; }
+.text-left { text-align: left !important; }
+.text-bold { font-weight: bold !important; }
+.text-normal { font-weight: normal !important; }
+.text-italic { font-style: italic !important; }
 
 .hidden {
-    opacity: 0 ;
-    visibility: hidden ;
-} 
+    display: none !important;
+    visibility: hidden !important;
+    opacity: 0 !important;
+}
+
+.visible {
+    display: block !important;
+    visibility: visible !important;
+    opacity: 1 !important;
+}
+
+.bg-primary { background-color: var(--primary-color) !important; }
+.bg-secondary { background-color: var(--secondary-color) !important; }
+.bg-accent { background-color: var(--accent-color) !important; }
+.bg-light { background-color: var(--light-bg-color) !important; }
+
+.border { border: 1px solid var(--light-accent-color) !important; }
+.border-radius { border-radius: 4px !important; }
+.border-none { border: none !important; }
+
+.shadow { box-shadow: var(--box-shadow) !important; }
+.shadow-none { box-shadow: none !important; } 

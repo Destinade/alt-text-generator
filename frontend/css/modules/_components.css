@@ -6,22 +6,22 @@
 .warning {
     background-color: var(--warning-color);
     color: white;
-    padding: 0.5rem 1rem;
+    padding: var(--spacing-sm) var(--spacing-md);
     border-radius: 4px;
     text-align: center;
     font-weight: bold;
-    margin-bottom: 1.5rem;
+    margin-bottom: var(--spacing-lg);
 }
 
 .process-flow {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    margin-bottom: 2rem;
-    padding: 1rem;
+    margin-bottom: var(--spacing-xl);
+    padding: var(--spacing-md);
     background-color: white;
     border-radius: 8px;
-    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    box-shadow: var(--box-shadow);
 }
 
 .process-step {
@@ -41,7 +41,7 @@
     justify-content: center;
     align-items: center;
     font-weight: bold;
-    margin-bottom: 0.5rem;
+    margin-bottom: var(--spacing-sm);
 }
 
 .step-description {
@@ -91,9 +91,9 @@
 
 .editor-note {
     background-color: var(--background-color);
-    padding: 1rem;
+    padding: var(--spacing-md);
     border-radius: 4px;
-    margin-top: 1rem;
+    margin-top: var(--spacing-md);
 }
 
 #futuristic-loader {
@@ -349,10 +349,7 @@
     justify-content: center;
     align-items: center;
     position: absolute;
-    top: 0;
-    left: 0;
-    right: 0;
-    bottom: 0;
+    inset: 0;
     background: rgba(255, 255, 255, 0.9);
     z-index: 1;
     min-height: 200px;
@@ -380,11 +377,11 @@
 }
 
 .stats-summary {
-    margin-bottom: 24px;
-    padding: 16px;
+    margin-bottom: var(--spacing-xl);
+    padding: var(--spacing-md);
     background: white;
     border-radius: 6px;
-    box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+    box-shadow: var(--box-shadow);
 }
 
 .stats-summary h3 {
@@ -396,11 +393,11 @@
 .stats-grid {
     display: grid;
     grid-template-columns: repeat(3, 1fr);
-    gap: 16px;
+    gap: var(--spacing-md);
 }
 
 .stat-item {
-    padding: 12px;
+    padding: var(--spacing-md);
     background: var(--light-bg-color);
     border-radius: 4px;
     text-align: center;
@@ -410,7 +407,7 @@
     display: block;
     font-size: 0.9em;
     color: var(--text-secondary);
-    margin-bottom: 4px;
+    margin-bottom: var(--spacing-xs);
 }
 
 .stat-value {
