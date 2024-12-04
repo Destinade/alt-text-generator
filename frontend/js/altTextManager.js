@@ -17,7 +17,5 @@ document.addEventListener("DOMContentLoaded", () => {
 	};
 
 	new UIHandler(elements);
-
-	// Initialize import handler with the import-related elements
-	const importHandler = new ImportHandler();
+	new ImportHandler(elements);
 });

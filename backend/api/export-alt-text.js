@@ -88,9 +88,19 @@ export default async function handler(req, res) {
 			console.log("HTML Content Length:", htmlContent.length);
 
 			console.log("Extracting image tags...");
-			const imgTags = [
-				...htmlContent.matchAll(/<img\s+[^>]*src="([^"]+)"[^>]*>/g),
-			];
+			function escapeRegExp(string) {
+				return string
+					.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")
+					.replace(/\s+/g, "\\s+"); // Handle spaces flexibly
+			}
+
+			const normalizedSource = imageSource.replace(/^\//, "");
+			const escapedSource = escapeRegExp(normalizedSource);
+			const regexPattern = new RegExp(
+				`<img\\s+[^>]*src=["']\\/?${escapedSource}["'][^>]*>`,
+				"gi"
+			);
+			const imgTags = [...htmlContent.matchAll(regexPattern)];
 			const uniqueImgTags = imgTags
 				.map((match) => match[1])
 				.filter((src, index, self) => index === self.indexOf(src));

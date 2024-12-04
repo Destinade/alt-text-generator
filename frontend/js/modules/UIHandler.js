@@ -124,9 +124,9 @@ export class UIHandler {
 			if (result.data.results && result.data.results.length > 0) {
 				result.data.results.forEach((lo) => {
 					if (lo.stats) {
-						stats.total += lo.stats.total;
-						stats.successful += lo.stats.successful;
-						stats.failed += lo.stats.failed;
+						stats.total += lo.stats.total || 0;
+						stats.successful += lo.stats.successful || 0;
+						stats.failed += lo.stats.failed || 0; // Use the actual failed count from the API
 					}
 				});
 			}

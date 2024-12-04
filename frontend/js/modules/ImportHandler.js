@@ -1,10 +1,10 @@
 import { APIService } from "./APIService.js";
 
 export class ImportHandler {
-	constructor() {
-		this.importForm = document.getElementById("importForm");
-		this.importFile = document.getElementById("importFile");
-		this.importResult = document.getElementById("importResult");
+	constructor(elements) {
+		this.importForm = elements.importForm;
+		this.importFile = elements.importFile;
+		this.importResult = elements.importResult;
 		this.setupEventListeners();
 	}
 

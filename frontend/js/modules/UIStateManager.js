@@ -5,11 +5,16 @@ export class UIStateManager {
 
 	updateUI({ message, status, data, stats }) {
 		const resultDiv = document.getElementById("exportResult");
+		const actionsDiv = document.getElementById("exportActions");
 		if (!resultDiv) return;
 
 		resultDiv.innerHTML = "";
 
 		if (status === "success" && data) {
+			if (actionsDiv) {
+				actionsDiv.style.display = "flex";
+			}
+
 			const statsHtml = `
 				<div class="stats-summary">
 					<h3>Processing Summary</h3>
@@ -69,14 +74,11 @@ export class UIStateManager {
 			`
 				: "";
 
-			resultDiv.innerHTML = `
-				<div class="export-results">
-					${statsHtml}
-					${tableHtml}
-				</div>
-			`;
+			resultDiv.innerHTML = `${statsHtml}${tableHtml}`;
 		} else {
-			resultDiv.innerHTML = `<p class="${status}">${message}</p>`;
+			if (actionsDiv) {
+				actionsDiv.style.display = "none";
+			}
 		}
 	}
 

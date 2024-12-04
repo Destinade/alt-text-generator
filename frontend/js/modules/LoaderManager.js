@@ -48,7 +48,7 @@ export class LoaderManager {
 				progressBar.style.transition = "none";
 				progressBar.style.width = "100%";
 			}
-		}, 3000); // Wait for initial loading animation to complete
+		}, 0); // Wait for initial loading animation to complete
 	}
 
 	hide() {

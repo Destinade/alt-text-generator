@@ -144,6 +144,7 @@ export default async function handler(req, res) {
 									url: src,
 									altText: existingAlt || result.altText,
 									imageData: imageDataUrl, // For PDF
+									success: true,
 								};
 							} catch (error) {
 								if (error.name === "AbortError") {
@@ -152,6 +153,7 @@ export default async function handler(req, res) {
 										url: src,
 										altText: existingAlt || "[Vision API timeout]",
 										imageData: null,
+										success: false,
 									};
 								}
 								console.error(`Error processing image ${src}:`, error);
@@ -159,6 +161,7 @@ export default async function handler(req, res) {
 									url: src,
 									altText: existingAlt || "[Image processing failed]",
 									imageData: null,
+									success: false,
 								};
 							}
 						})
