@@ -253,6 +253,10 @@ export default async function handler(req, res) {
 			console.log("Successful images:", processedImages.length);
 			console.log("Failed images:", failedImages.length);
 
+			// Initialize an array to collect errors
+			const errors = [];
+
+			// After processing all images
 			res.status(200).json({
 				message: "Alt text generation complete",
 				data: {
@@ -267,6 +271,7 @@ export default async function handler(req, res) {
 						failed: failedImages.length,
 					},
 				},
+				errors, // Include errors in the response
 			});
 		} catch (error) {
 			console.error("Error in handler:", error);

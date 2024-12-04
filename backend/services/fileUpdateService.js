@@ -16,49 +16,50 @@ export class FileUpdateService {
 	}
 
 	async updateFiles(metadata, altTextData) {
-		console.log("FileUpdateService: Starting update with:", {
-			baseLink: metadata.relativeLink,
-			altTextCount: altTextData.length,
-		});
-
 		const results = {
 			success: true,
 			filesProcessed: 0,
 			updatedFiles: [],
 			errors: [],
+			imageResults: {
+				total: altTextData.length,
+				successful: 0,
+				failed: 0,
+				failedImages: [],
+			},
 		};
 
 		try {
-			// Group alt text data by LO title
 			const loGroups = this.groupByLO(altTextData);
-			console.log("Grouped by LO:", Object.keys(loGroups));
 
-			// Process each LO's HTML file
 			for (const [loTitle, images] of Object.entries(loGroups)) {
 				try {
 					const loPath = this.constructLoPath(metadata.relativeLink, loTitle);
-					console.log("Processing LO:", {
-						title: loTitle,
-						path: loPath,
-						imageCount: images.length,
-					});
-
-					// Fetch HTML content from S3
 					const htmlContent = await this.fetchHtmlContent(loPath);
-					console.log("Original HTML length:", htmlContent.length);
+					let updatedHtml = htmlContent;
 
-					// Update image tags
-					const updatedHtml = this.updateHtmlContent(htmlContent, images);
-					console.log("Updated HTML length:", updatedHtml.length);
+					// Track each image update
+					for (const image of images) {
+						const beforeUpdate = updatedHtml;
+						updatedHtml = this.updateImageInHtml(updatedHtml, image);
 
-					// Save back to S3
+						if (beforeUpdate === updatedHtml) {
+							// Image wasn't updated
+							results.imageResults.failed++;
+							results.imageResults.failedImages.push({
+								loTitle,
+								imageSource: image.imageSource,
+								error: "Failed to update image in HTML",
+							});
+						} else {
+							results.imageResults.successful++;
+						}
+					}
+
 					await this.saveHtmlContent(loPath, updatedHtml);
-
 					results.filesProcessed++;
 					results.updatedFiles.push(loTitle);
-					console.log("Successfully updated LO:", loTitle);
 				} catch (error) {
-					console.error("Error updating LO:", loTitle, error);
 					results.errors.push({
 						loTitle,
 						error: error.message,
@@ -66,7 +67,6 @@ export class FileUpdateService {
 				}
 			}
 		} catch (error) {
-			console.error("Error in updateFiles:", error);
 			results.success = false;
 			results.errors.push({
 				error: "Failed to process files",
@@ -74,6 +74,9 @@ export class FileUpdateService {
 			});
 		}
 
+		// Update overall success flag
+		results.success =
+			results.imageResults.failed === 0 && results.errors.length === 0;
 		return results;
 	}
 
@@ -158,5 +161,60 @@ export class FileUpdateService {
 
 	constructLoPath(baseLink, loTitle) {
 		return `dev${baseLink}/${loTitle}/index.html`.replace(/\/+/g, "/");
+	}
+
+	updateImageInHtml(htmlContent, image) {
+		// Remove leading slash and normalize the path
+		const normalizedSource = image.imageSource.replace(/^\//, "");
+
+		// Create a more flexible regex pattern that handles spaces and special characters
+		const imgPattern = normalizedSource
+			.replace(/[.*+?^${}()|[\]\\]/g, "\\$&") // Escape special regex characters
+			.replace(/\s+/g, "\\s+") // Handle multiple spaces
+			.replace(/\(/g, "\\(") // Escape parentheses
+			.replace(/\)/g, "\\)");
+
+		const regexPattern = new RegExp(
+			`<img[^>]*src=["']\\/?${imgPattern}["'][^>]*>`,
+			"gi"
+		);
+
+		console.log("Image update attempt:", {
+			originalSource: image.imageSource,
+			normalizedSource,
+			pattern: regexPattern.toString(),
+		});
+
+		let updated = false;
+		const updatedContent = htmlContent.replace(regexPattern, (match) => {
+			updated = true;
+			// Keep existing attributes except alt
+			const updatedTag = match.replace(
+				/alt=["'][^"']*["']/gi,
+				`alt="${image.editedAltText}"`
+			);
+
+			// If no alt attribute exists, add it before the closing >
+			if (!match.includes("alt=")) {
+				return updatedTag.replace(/>$/, ` alt="${image.editedAltText}">`);
+			}
+
+			return updatedTag;
+		});
+
+		// Log whether the update was successful
+		console.log(
+			`Image update ${updated ? "successful" : "failed"} for: ${
+				image.imageSource
+			}`
+		);
+
+		return updatedContent;
+	}
+
+	escapeRegExp(string) {
+		return string
+			.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")
+			.replace(/\s+/g, "\\s+");
 	}
 }

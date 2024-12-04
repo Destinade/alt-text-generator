@@ -100,8 +100,14 @@
 				<div class="section import-section">
 					<h2>3. Import and Apply Alt Text</h2>
 					<form id="importForm">
-						<input type="file" id="importFile" accept=".xlsx,.json" />
-						<button type="submit">Import Alt Text</button>
+						<div class="file-upload-container">
+							<div class="file-upload-content">
+								<div class="upload-icon">📄</div>
+								<p>Drag and drop your file here or click to browse</p>
+								<p class="file-types">Accepts .xlsx and .json files</p>
+								<input type="file" id="importFile" accept=".xlsx,.json" />
+							</div>
+						</div>
 					</form>
 					<div id="importResult"></div>
 				</div>

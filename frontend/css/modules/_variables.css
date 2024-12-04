@@ -1,11 +1,38 @@
 :root {
+    /* Core Colors */
     --primary-color: #004d80;
     --secondary-color: #017acc;
     --accent-color: #2aaeff;
     --light-accent-color: #b1e3ff;
+    
+    /* Background Colors */
     --background-color: #f0f4f8;
+    --light-bg-color: #f8fafc;
+    
+    /* Text Colors */
     --text-color: #333;
+    --text-secondary: #666;
+    --text-primary: #2d3748;
+    
+    /* Status Colors */
     --success-color: #189e4e;
     --warning-color: #e47600;
     --error-color: #df313c;
+    
+    /* Border Colors */
+    --border-color: #e2e8f0;
+    
+    /* Shadows */
+    --box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    --hover-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+    
+    /* Transitions */
+    --transition-speed: 0.3s;
+    
+    /* Spacing */
+    --spacing-xs: 0.25rem;
+    --spacing-sm: 0.5rem;
+    --spacing-md: 1rem;
+    --spacing-lg: 1.5rem;
+    --spacing-xl: 2rem;
 } 

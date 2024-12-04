@@ -10,6 +10,37 @@ export class ImportHandler {
 
 	setupEventListeners() {
 		this.importForm.addEventListener("submit", (e) => this.handleImport(e));
+
+		const fileContainer = this.importForm.querySelector(
+			".file-upload-container"
+		);
+
+		["dragenter", "dragover", "dragleave", "drop"].forEach((eventName) => {
+			fileContainer.addEventListener(eventName, (e) => {
+				e.preventDefault();
+				e.stopPropagation();
+			});
+		});
+
+		["dragenter", "dragover"].forEach((eventName) => {
+			fileContainer.addEventListener(eventName, () => {
+				fileContainer.classList.add("drag-over");
+			});
+		});
+
+		["dragleave", "drop"].forEach((eventName) => {
+			fileContainer.addEventListener(eventName, () => {
+				fileContainer.classList.remove("drag-over");
+			});
+		});
+
+		fileContainer.addEventListener("drop", (e) => {
+			const file = e.dataTransfer.files[0];
+			if (file) {
+				this.importFile.files = e.dataTransfer.files;
+				this.handleImport(e);
+			}
+		});
 	}
 
 	validateFile(file) {
@@ -65,23 +96,16 @@ export class ImportHandler {
 			const responseData = await response.json();
 			console.log("Response data:", responseData);
 
-			if (responseData.success) {
-				this.showResults({
-					filesProcessed: responseData.totalProcessed || 0,
-					imagesUpdated: responseData.altTextData?.length || 0,
-				});
+			// Show results if we have valid data, regardless of success status
+			if (responseData.updateSummary?.imageResults) {
+				this.showResults(responseData);
 			} else {
-				// Enhanced error handling
-				if (responseData.errorSummary?.errors?.validation) {
-					const validationErrors = responseData.errorSummary.errors.validation
-						.map((error) => `• ${error.message.message || error.message}`)
-						.join("\n");
-					this.showError(
-						`File validation failed:\n${validationErrors}\n\nPlease ensure all required metadata fields are filled in the Excel file.`
-					);
-				} else {
-					this.showError(responseData.error || "Failed to process file");
-				}
+				// Only show error if we don't have valid results data
+				const errors = responseData.updateSummary?.errors || [];
+				const errorMessages = errors
+					.map((err) => `• ${err.loTitle}: ${err.error}`)
+					.join("\n");
+				this.showError(`Import failed:\n${errorMessages}`);
 			}
 		} catch (error) {
 			console.error("Import error:", error);
@@ -115,18 +139,125 @@ export class ImportHandler {
 
 	showResults(data) {
 		console.log("Showing results:", data);
-		this.importResult.innerHTML = `
-			<div class="success">
-				<h3>Import Successful!</h3>
-				<p>Files processed: ${data.filesProcessed || 0}</p>
-				<p>Images updated: ${data.imagesUpdated || 0}</p>
+		const resultDiv = document.getElementById("exportResult");
+		const actionsDiv = document.getElementById("exportActions");
+
+		if (!resultDiv) return;
+
+		// Hide export actions when showing import results
+		if (actionsDiv) {
+			actionsDiv.style.display = "none";
+		}
+
+		const imageResults = data.updateSummary?.imageResults || {};
+		const hasFailures = imageResults.failed > 0;
+
+		// Group results by LO (keep existing grouping logic)
+		const loResults = data.updateSummary.updatedFiles.map((loTitle) => {
+			const loImages = data.altTextData.filter(
+				(img) => img.loTitle === loTitle
+			);
+			const loFailures = imageResults.failedImages.filter(
+				(fail) => fail.loTitle === loTitle
+			);
+
+			return {
+				name: loTitle,
+				success: loFailures.length === 0,
+				stats: {
+					total: loImages.length,
+					successful: loImages.length - loFailures.length,
+					failed: loFailures.length,
+				},
+			};
+		});
+
+		// Use the same format as UIStateManager
+		resultDiv.innerHTML = `
+			<div class="stats-summary">
+				<h3>Import Summary</h3>
+				<div class="stats-grid">
+					<div class="stat-item">
+						<span class="stat-label">Total images:</span>
+						<span class="stat-value">${imageResults.total}</span>
+					</div>
+					<div class="stat-item">
+						<span class="stat-label">Successfully updated:</span>
+						<span class="stat-value ${
+							imageResults.successful === imageResults.total ? "success" : ""
+						}">${imageResults.successful}</span>
+					</div>
+					<div class="stat-item">
+						<span class="stat-label">Failed:</span>
+						<span class="stat-value ${imageResults.failed > 0 ? "error" : ""}">${
+			imageResults.failed
+		}</span>
+					</div>
+				</div>
 			</div>
+
+			<div class="results-table-wrapper">
+				<table class="results-table">
+					<thead>
+						<tr>
+							<th>Learning Object</th>
+							<th>Status</th>
+							<th>Images</th>
+							<th>Success Rate</th>
+						</tr>
+					</thead>
+					<tbody>
+						${loResults
+							.map(
+								(lo) => `
+							<tr>
+								<td class="lo-name">${lo.name}</td>
+								<td class="status ${lo.success ? "success" : "error"}">
+									${lo.success ? "✓ Success" : "✗ Partial"}
+								</td>
+								<td class="image-count">${lo.stats.total}</td>
+								<td class="success-rate">
+									${Math.round((lo.stats.successful / lo.stats.total) * 100)}%
+								</td>
+							</tr>
+						`
+							)
+							.join("")}
+					</tbody>
+				</table>
+			</div>
+
+			${
+				hasFailures
+					? `
+				<div class="failures">
+					<h4>Failed Updates</h4>
+					<ul>
+						${imageResults.failedImages
+							.map(
+								(fail) =>
+									`<li>${fail.imageSource} in ${fail.loTitle}: ${fail.error}</li>`
+							)
+							.join("")}
+					</ul>
+				</div>
+			`
+					: ""
+			}
 		`;
 	}
 
 	showError(message) {
-		console.error("Import error:", message);
-		this.importResult.innerHTML = `
+		const resultDiv = document.getElementById("exportResult");
+		const actionsDiv = document.getElementById("exportActions");
+
+		if (!resultDiv) return;
+
+		if (actionsDiv) {
+			actionsDiv.style.display = "none";
+		}
+
+		resultDiv.innerHTML = `
 			<div class="error">
 				<h3>Error</h3>
 				<p style="white-space: pre-line">${message}</p>
@@ -142,32 +273,5 @@ export class ImportHandler {
 			<div class="status">Processing ${current} of ${total} files</div>
 		`;
 		this.resultDiv.appendChild(progressBar);
-	}
-
-	showDetailedResults(results) {
-		const summary = document.createElement("div");
-		summary.className = "import-summary";
-		summary.innerHTML = `
-			<h3>Import Complete</h3>
-			<div class="stats">
-				<div>Files Processed: ${results.filesProcessed}</div>
-				<div>Images Updated: ${results.imagesUpdated}</div>
-				<div>Success Rate: ${((results.success / results.total) * 100).toFixed(
-					1
-				)}%</div>
-			</div>
-			${
-				results.errors.length
-					? `
-				<div class="errors">
-					<h4>Errors (${results.errors.length})</h4>
-					<ul>
-						${results.errors.map((e) => `<li>${e.message}</li>`).join("")}
-					</ul>
-				</div>
-			`
-					: ""
-			}
-		`;
 	}
 }

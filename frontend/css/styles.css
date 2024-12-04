@@ -782,3 +782,65 @@ button:disabled {
 #exportActions button {
     flex: 1;
 }
+
+.file-upload-container {
+    position: relative;
+    width: 90%;
+    min-height: 300px;
+    border: 2px dashed var(--light-accent-color);
+    border-radius: 8px;
+    background-color: #f8fafc;
+    transition: all 0.3s ease;
+    cursor: pointer;
+    margin: 1rem auto;
+    box-sizing: border-box;
+}
+
+.file-upload-content {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 2rem;
+    box-sizing: border-box;
+    z-index: 3;
+    pointer-events: none;
+}
+
+.file-upload-container input[type="file"] {
+    position: absolute;
+    inset: 0;
+    width: -webkit-fill-available;
+    width: -moz-available;
+    width: stretch;
+    height: 100%;
+    opacity: 0;
+    cursor: pointer;
+    z-index: 2;
+}
+
+.upload-icon {
+    font-size: 4rem;
+    margin-bottom: 1.5rem;
+    color: var(--primary-color);
+    z-index: 4;
+}
+
+.file-upload-content p {
+    margin: 0.5rem 0;
+    text-align: center;
+}
+
+.file-types {
+    font-size: 0.875rem;
+    color: var(--light-accent-color);
+    margin-top: 1rem;
+}
+
+.file-upload-container:hover,
+.file-upload-container.drag-over {
+    border-color: var(--primary-color);
+    background-color: #f1f5f9;
+}

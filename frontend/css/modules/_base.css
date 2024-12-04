@@ -1,10 +1,15 @@
+/* Reset */
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
 body {
     font-family: 'Roboto', sans-serif;
     background-color: var(--background-color);
     color: var(--text-color);
     line-height: 1.6;
-    margin: 0;
-    padding: 0;
     min-height: 100vh;
     display: flex;
     flex-direction: column;
@@ -14,9 +19,26 @@ body {
 
 h1, h2, h3, h4, h5, h6 {
     color: var(--primary-color);
-    margin-bottom: 1rem;
+    margin-bottom: var(--spacing-md);
+    font-weight: 500;
+    line-height: 1.2;
 }
 
 p {
-    margin-bottom: 1rem;
+    margin-bottom: var(--spacing-md);
+}
+
+img {
+    max-width: 100%;
+    height: auto;
+}
+
+a {
+    color: var(--accent-color);
+    text-decoration: none;
+    transition: color var(--transition-speed) ease;
+}
+
+a:hover {
+    color: var(--primary-color);
 } 

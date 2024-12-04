@@ -106,6 +106,7 @@ export class FileProcessingService {
 					filesProcessed: updateResults.filesProcessed,
 					updatedFiles: updateResults.updatedFiles,
 					errors: updateResults.errors,
+					imageResults: updateResults.imageResults,
 				},
 			};
 		} catch (error) {
