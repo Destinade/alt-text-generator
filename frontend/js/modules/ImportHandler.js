@@ -126,12 +126,17 @@ export class ImportHandler {
 	}
 
 	showLoading() {
-		this.importResult.innerHTML =
-			'<div class="loading">Processing file...</div>';
+		const resultDiv = document.getElementById("exportResult");
+		if (resultDiv) {
+			resultDiv.innerHTML =
+				'<div class="results-loading active"><div class="lo-loading-spinner"></div><div class="loading-text">Processing file...</div></div>';
+		}
 	}
 
 	hideLoading() {
-		const loadingElement = this.importResult.querySelector(".loading");
+		const loadingElement = document
+			.getElementById("exportResult")
+			.querySelector(".results-loading");
 		if (loadingElement) {
 			loadingElement.remove();
 		}
@@ -139,41 +144,35 @@ export class ImportHandler {
 
 	showResults(data) {
 		console.log("Showing results:", data);
-		const resultDiv = document.getElementById("exportResult");
-		const actionsDiv = document.getElementById("exportActions");
 
-		if (!resultDiv) return;
+		const imageResults = data.updateSummary.imageResults;
 
-		// Hide export actions when showing import results
-		if (actionsDiv) {
-			actionsDiv.style.display = "none";
-		}
-
-		const imageResults = data.updateSummary?.imageResults || {};
-		const hasFailures = imageResults.failed > 0;
-
-		// Group results by LO (keep existing grouping logic)
 		const loResults = data.updateSummary.updatedFiles.map((loTitle) => {
 			const loImages = data.altTextData.filter(
 				(img) => img.loTitle === loTitle
 			);
-			const loFailures = imageResults.failedImages.filter(
+
+			const failedImagesForLO = imageResults.failedImages.filter(
 				(fail) => fail.loTitle === loTitle
 			);
 
+			const stats = {
+				total: loImages.length,
+				successful: loImages.length - failedImagesForLO.length,
+				failed: failedImagesForLO.length,
+			};
+
 			return {
 				name: loTitle,
-				success: loFailures.length === 0,
-				stats: {
-					total: loImages.length,
-					successful: loImages.length - loFailures.length,
-					failed: loFailures.length,
-				},
+				success: stats.failed === 0,
+				partial: stats.successful > 0 && stats.failed > 0,
+				stats: stats,
 			};
 		});
 
-		// Use the same format as UIStateManager
-		resultDiv.innerHTML = `
+		const hasFailures = imageResults.failed > 0;
+
+		const resultsHtml = `
 			<div class="stats-summary">
 				<h3>Import Summary</h3>
 				<div class="stats-grid">
@@ -212,8 +211,8 @@ export class ImportHandler {
 								(lo) => `
 							<tr>
 								<td class="lo-name">${lo.name}</td>
-								<td class="status ${lo.success ? "success" : "error"}">
-									${lo.success ? "✓ Success" : "✗ Partial"}
+								<td class="status ${lo.success ? "success" : lo.partial ? "partial" : "error"}">
+									${lo.success ? "✓ Success" : lo.partial ? "Partial" : "✗ Failed"}
 								</td>
 								<td class="image-count">${lo.stats.total}</td>
 								<td class="success-rate">
@@ -245,6 +244,15 @@ export class ImportHandler {
 					: ""
 			}
 		`;
+
+		const resultDiv = document.getElementById("exportResult");
+		if (resultDiv) {
+			resultDiv.innerHTML = resultsHtml;
+			const actionsDiv = document.getElementById("exportActions");
+			if (actionsDiv) {
+				actionsDiv.style.display = "flex";
+			}
+		}
 	}
 
 	showError(message) {

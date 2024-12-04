@@ -10,6 +10,19 @@ export class UIStateManager {
 
 		resultDiv.innerHTML = "";
 
+		if (status === "loading") {
+			resultDiv.innerHTML = `
+				<div class="results-loading active">
+					<div class="lo-loading-spinner"></div>
+					<div class="loading-text">Processing...</div>
+				</div>
+			`;
+			if (actionsDiv) {
+				actionsDiv.style.display = "none";
+			}
+			return;
+		}
+
 		if (status === "success" && data) {
 			if (actionsDiv) {
 				actionsDiv.style.display = "flex";
@@ -49,6 +62,7 @@ export class UIStateManager {
 								<th>Status</th>
 								<th>Images</th>
 								<th>Success Rate</th>
+								<th>Generation Status</th>
 							</tr>
 						</thead>
 						<tbody>
@@ -64,6 +78,9 @@ export class UIStateManager {
 									<td class="success-rate">
 										${Math.round((lo.stats.successful / lo.stats.total) * 100)}%
 									</td>
+									<td class="generation-status">
+										${lo.images.map((img) => (img.altText.startsWith("[") ? "❌" : "✓")).join(", ")}
+									</td>
 								</tr>
 							`
 								)
@@ -71,7 +88,7 @@ export class UIStateManager {
 						</tbody>
 					</table>
 				</div>
-			`
+				`
 				: "";
 
 			resultDiv.innerHTML = `${statsHtml}${tableHtml}`;

@@ -109,36 +109,15 @@ export class UIHandler {
 				gradeLevel: formData.get("gradeLevel"),
 			});
 
-			console.log("API Response:", result); // Debug the entire response
-			console.log("Response data type:", typeof result.data); // Check data type
-			console.log("Response data:", result.data); // See the actual data
-
-			// Calculate totals from all LOs in the results array
-			const stats = {
-				total: 0,
-				successful: 0,
-				failed: 0,
-			};
-
-			// Access the results array and sum up stats from each LO
-			if (result.data.results && result.data.results.length > 0) {
-				result.data.results.forEach((lo) => {
-					if (lo.stats) {
-						stats.total += lo.stats.total || 0;
-						stats.successful += lo.stats.successful || 0;
-						stats.failed += lo.stats.failed || 0; // Use the actual failed count from the API
-					}
-				});
-			}
-
-			console.log("Calculated stats:", stats);
+			// Use only the top-level stats from the API response
+			const stats = result.data.stats;
 
 			this.data = result.data;
 			this.uiStateManager.updateUI({
 				message: "Alt text generated successfully!",
 				status: "success",
 				data: result.data,
-				stats: stats,
+				stats: stats, // Pass only the top-level stats
 			});
 		} catch (error) {
 			console.error("Error:", error);
@@ -187,5 +166,42 @@ export class UIHandler {
 	handleEmail() {
 		// Email functionality to be implemented
 		console.log("Email functionality not yet implemented");
+	}
+
+	showResults(data) {
+		console.log("Response data type:", typeof data);
+		console.log("Response data:", data);
+
+		// Use only the top-level stats
+		const stats = data.stats || this.calculateStats(data.results);
+
+		// Create the results HTML
+		const resultsHTML = `
+			<div class="stats-summary">
+				<h3>Import Summary</h3>
+				<div class="stats-grid">
+					<div class="stat-item">
+						<span class="stat-label">Total images:</span>
+						<span class="stat-value">${stats.total}</span>
+					</div>
+					<div class="stat-item">
+						<span class="stat-label">Successful:</span>
+						<span class="stat-value success">${stats.successful}</span>
+					</div>
+					<div class="stat-item">
+						<span class="stat-label">Failed:</span>
+						<span class="stat-value ${stats.failed > 0 ? "error" : ""}">${
+			stats.failed
+		}</span>
+					</div>
+				</div>
+			</div>
+		`;
+
+		// Update the UI
+		const resultDiv = document.getElementById("importResult");
+		if (resultDiv) {
+			resultDiv.innerHTML = resultsHTML;
+		}
 	}
 }

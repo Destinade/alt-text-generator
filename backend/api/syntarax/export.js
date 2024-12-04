@@ -142,7 +142,7 @@ export default async function handler(req, res) {
 
 								return {
 									url: src,
-									altText: existingAlt || result.altText,
+									altText: result.altText || existingAlt,
 									imageData: imageDataUrl, // For PDF
 									success: true,
 								};
@@ -151,7 +151,7 @@ export default async function handler(req, res) {
 									console.error(`Vision API request timed out for ${src}`);
 									return {
 										url: src,
-										altText: existingAlt || "[Vision API timeout]",
+										altText: "[Vision API timeout]",
 										imageData: null,
 										success: false,
 									};
@@ -159,7 +159,7 @@ export default async function handler(req, res) {
 								console.error(`Error processing image ${src}:`, error);
 								return {
 									url: src,
-									altText: existingAlt || "[Image processing failed]",
+									altText: "[Image processing failed]",
 									imageData: null,
 									success: false,
 								};
