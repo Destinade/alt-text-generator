@@ -27,9 +27,12 @@ export class APIService {
 	}
 
 	static async generateFiles(data) {
-		const response = await fetch(`${this.BASE_URL}/generate-files`, {
+		const response = await fetch(`${this.BASE_URL}/syntarax/generate-files`, {
 			method: "POST",
-			headers: { "Content-Type": "application/json" },
+			headers: {
+				"Content-Type": "application/json",
+				Accept: "application/json",
+			},
 			body: JSON.stringify({ data }),
 		});
 		if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);

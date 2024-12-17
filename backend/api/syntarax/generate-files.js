@@ -1,5 +1,5 @@
-import { generateExcel } from "../services/excelService.js";
-import { generatePDF } from "../services/pdfService.js";
+import { generateExcel } from "../../services/excelService.js";
+import { generatePDF } from "../../services/pdfService.js";
 
 function getTimestamp() {
 	const now = new Date();
@@ -10,6 +10,7 @@ export default async function handler(req, res) {
 	// CORS headers
 	const allowedOrigins = [
 		"https://edwincontent.nelsontechdev.com",
+		"https://syntarax.vercel.app",
 		"http://localhost:3000",
 		"http://localhost:5000",
 		"http://localhost:5500",
