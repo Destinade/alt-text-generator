@@ -22,7 +22,12 @@ export class FileUpdateService {
 	}
 
 	async updateFiles(metadata, altTextData) {
-		// Reset results at the start of each update operation
+		console.log("Starting updateFiles with:", {
+			metadata,
+			altTextDataLength: altTextData.length,
+		});
+
+		// Reset results
 		this.results = {
 			success: true,
 			filesProcessed: 0,
@@ -39,22 +44,42 @@ export class FileUpdateService {
 
 		try {
 			const loGroups = this.groupByLO(altTextData);
+			console.log("Grouped by LO:", loGroups);
 
 			for (const [loTitle, images] of Object.entries(loGroups)) {
 				try {
 					const loPath = this.constructLoPath(metadata.relativeLink, loTitle);
+					console.log("Processing LO:", {
+						loTitle,
+						loPath,
+						imageCount: images.length,
+					});
+
 					const htmlContent = await this.fetchHtmlContent(loPath);
+					console.log("Fetched HTML content length:", htmlContent.length);
+
 					let updatedHtml = htmlContent;
 
-					// Track each image update
 					for (const image of images) {
+						console.log("Processing image:", {
+							source: image.imageSource,
+							needsVisualDesc: image.needsVisualDescription,
+							visualDesc: image.editedVisualDescription,
+						});
+
 						updatedHtml = this.updateImageInHtml(updatedHtml, image, loTitle);
 					}
 
-					await this.saveHtmlContent(loPath, updatedHtml);
-					this.results.filesProcessed++;
-					this.results.updatedFiles.push(loTitle);
+					if (updatedHtml !== htmlContent) {
+						console.log("HTML content changed, saving updates...");
+						await this.saveHtmlContent(loPath, updatedHtml);
+						this.results.filesProcessed++;
+						this.results.updatedFiles.push(loTitle);
+					} else {
+						console.log("No changes detected in HTML content");
+					}
 				} catch (error) {
+					console.error("Error processing LO:", { loTitle, error });
 					this.results.errors.push({
 						loTitle,
 						error: error.message,
@@ -62,12 +87,14 @@ export class FileUpdateService {
 				}
 			}
 		} catch (error) {
+			console.error("Error in updateFiles:", error);
 			this.results.success = false;
 			this.results.errors.push({
 				error: error.message,
 			});
 		}
 
+		console.log("Update results:", this.results);
 		return this.results;
 	}
 
@@ -141,13 +168,32 @@ export class FileUpdateService {
 	}
 
 	groupByLO(altTextData) {
-		return altTextData.reduce((groups, item) => {
+		console.log("Grouping data:", JSON.stringify(altTextData[0], null, 2));
+		const groups = {};
+		altTextData.forEach((item) => {
 			if (!groups[item.loTitle]) {
 				groups[item.loTitle] = [];
 			}
-			groups[item.loTitle].push(item);
-			return groups;
-		}, {});
+			// Preserve all properties from the original data
+			groups[item.loTitle].push({
+				loTitle: item.loTitle,
+				imageSource: item.imageSource,
+				generatedAltText: item.generatedAltText,
+				editedAltText: item.editedAltText,
+				generatedVisualDescription: item.generatedVisualDescription,
+				editedVisualDescription: item.editedVisualDescription,
+				needsVisualDescription:
+					item.needsVisualDescription === true ||
+					item.needsVisualDescription === "TRUE",
+				isDecorative: item.isDecorative,
+				credit: item.credit || "Unknown",
+			});
+		});
+		console.log(
+			"First grouped item:",
+			JSON.stringify(groups[Object.keys(groups)[0]][0], null, 2)
+		);
+		return groups;
 	}
 
 	constructLoPath(baseLink, loTitle) {
@@ -155,21 +201,29 @@ export class FileUpdateService {
 	}
 
 	updateImageInHtml(htmlContent, image, loTitle) {
+		console.log("Full image data:", JSON.stringify(image, null, 2));
+
+		// Initialize updatedContent at the start
+		let updatedContent = htmlContent;
+
 		const normalizedSource = image.imageSource.replace(/^\//, "");
 		const imgPattern = normalizedSource
 			.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")
-			.replace(/\s+/g, "\\s+")
-			.replace(/\(/g, "\\(")
-			.replace(/\)/g, "\\)");
+			.replace(/\s+/g, "\\s+");
 
 		const regexPattern = new RegExp(
-			`<img\\s+[^>]*?src=["']\\/?${imgPattern}["'][^>]*?>`,
+			`<img[^>]*src=["']\\/?${imgPattern}["'][^>]*>`,
 			"gi"
 		);
 
-		// Check if image exists in HTML
 		const match = htmlContent.match(regexPattern);
+		console.log("Image match result:", {
+			pattern: regexPattern,
+			found: !!match,
+		});
+
 		if (!match) {
+			console.log("Image not found in HTML");
 			this.results.imageResults.failed++;
 			this.results.imageResults.failedImages.push({
 				loTitle,
@@ -179,35 +233,38 @@ export class FileUpdateService {
 			return htmlContent;
 		}
 
-		const imgTag = match[0];
-		const imgIndex = htmlContent.indexOf(imgTag);
-		const beforeImg = htmlContent.substring(0, imgIndex);
-		const afterImg = htmlContent.substring(imgIndex + imgTag.length);
-		const inFigure =
-			beforeImg.lastIndexOf("<figure") > beforeImg.lastIndexOf("</figure");
-
 		try {
-			// Create new img tag with just the src and alt attributes first
-			let newImgTag = `<img src="${image.imageSource}" alt="${image.editedAltText}"`;
+			const imgTag = match[0];
+			const imgIndex = updatedContent.indexOf(imgTag);
+			const beforeImg = updatedContent.substring(0, imgIndex);
 
-			// Add any additional attributes needed
+			// Check if image is in a figure element
+			const inFigure =
+				beforeImg.lastIndexOf("<figure") > beforeImg.lastIndexOf("</figure");
+			console.log("Image context:", {
+				inFigure,
+				needsVisualDesc: image.needsVisualDescription,
+				visualDesc: image.editedVisualDescription,
+			});
+
+			// Create new img tag with aria-describedby
+			const descId = `desc_${Date.now()}_${Math.random()
+				.toString(36)
+				.substr(2, 9)}`;
+			const creditId = `credit_${Date.now()}_${Math.random()
+				.toString(36)
+				.substr(2, 9)}`;
+
+			let newImgTag = `<img src="${image.imageSource}" alt="${image.editedAltText}"`;
 			if (image.needsVisualDescription && inFigure) {
-				const descId = `desc_${Date.now()}_${Math.random()
-					.toString(36)
-					.substr(2, 9)}`;
 				newImgTag += ` aria-describedby="${descId}"`;
 			}
-
-			// Close the tag
 			newImgTag += ">";
 
-			let updatedContent = htmlContent;
-
-			// Replace the old img tag with the new one
+			// Replace the img tag first
 			updatedContent = updatedContent.replace(imgTag, newImgTag);
 
 			if (inFigure && image.needsVisualDescription) {
-				// Find the containing figure element
 				const figureStartIndex = beforeImg.lastIndexOf("<figure");
 				const figureEndIndex =
 					updatedContent.indexOf("</figure>", imgIndex) + "</figure>".length;
@@ -216,20 +273,8 @@ export class FileUpdateService {
 					figureEndIndex
 				);
 
-				// Generate unique IDs
-				const descId = `desc_${Date.now()}_${Math.random()
-					.toString(36)
-					.substr(2, 9)}`;
-				const creditId = `credit_${Date.now()}_${Math.random()
-					.toString(36)
-					.substr(2, 9)}`;
-
-				// Create updated figure content
-				let updatedFigure = entireFigure;
-
-				// Update or add figcaption
-				if (updatedFigure.includes("<figcaption")) {
-					const captionContent = `
+				const figcaptionContent = `
+					<figcaption>
 						<div class="caption-control">
 							<button type="button" data-type="edwin-description" aria-controls="${descId}" aria-expanded="false" aria-label="shows and hides the long description">Visual description</button>
 							<button type="button" data-type="edwin-credit" aria-controls="${creditId}" aria-expanded="false" aria-label="shows and hides the credits">Credit</button>
@@ -239,27 +284,19 @@ export class FileUpdateService {
 						</aside>
 						<aside id="${creditId}" class="credit" aria-hidden="true">
 							<p><strong>Credit</strong>: ${image.credit || "Unknown"}</p>
-						</aside>`;
+						</aside>
+					</figcaption>`;
 
+				let updatedFigure = entireFigure;
+				if (updatedFigure.includes("<figcaption")) {
 					updatedFigure = updatedFigure.replace(
 						/<figcaption[^>]*>[\s\S]*?<\/figcaption>/,
-						`<figcaption>${captionContent}</figcaption>`
+						figcaptionContent
 					);
 				} else {
 					updatedFigure = updatedFigure.replace(
 						/<\/figure>/,
-						`<figcaption>
-							<div class="caption-control">
-								<button type="button" data-type="edwin-description" aria-controls="${descId}" aria-expanded="false" aria-label="shows and hides the long description">Visual description</button>
-								<button type="button" data-type="edwin-credit" aria-controls="${creditId}" aria-expanded="false" aria-label="shows and hides the credits">Credit</button>
-							</div>
-							<aside id="${descId}" class="long-description" aria-hidden="true">
-								<p><strong>Visual description</strong>: ${image.editedVisualDescription}</p>
-							</aside>
-							<aside id="${creditId}" class="credit" aria-hidden="true">
-								<p><strong>Credit</strong>: ${image.credit || "Unknown"}</p>
-							</aside>
-						</figcaption></figure>`
+						`${figcaptionContent}</figure>`
 					);
 				}
 
@@ -267,30 +304,67 @@ export class FileUpdateService {
 					updatedContent.substring(0, figureStartIndex) +
 					updatedFigure +
 					updatedContent.substring(figureEndIndex);
-			} else if (!inFigure && image.needsVisualDescription) {
-				this.results.imageResults.needsFigure.push({
-					loTitle,
-					imageSource: image.imageSource,
-				});
 			}
 
-			// Only increment success counter if we reach this point
 			this.results.imageResults.successful++;
 			return updatedContent;
 		} catch (error) {
+			console.error("Error updating image:", error);
 			this.results.imageResults.failed++;
 			this.results.imageResults.failedImages.push({
 				loTitle,
 				imageSource: image.imageSource,
-				error: error.message || "Error updating image",
+				error: error.message,
 			});
 			return htmlContent;
 		}
 	}
 
-	escapeRegExp(string) {
-		return string
-			.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")
-			.replace(/\s+/g, "\\s+");
+	parseNeedsVisualDescription(value) {
+		if (typeof value === "string") {
+			return value.toLowerCase() === "true";
+		}
+		return Boolean(value);
+	}
+
+	async processLearningObject(loTitle, images, baseLink) {
+		try {
+			const loPath = this.constructLoPath(baseLink, loTitle);
+			const htmlContent = await this.getHtmlContent(loPath);
+
+			if (!htmlContent) {
+				this.results.errors.push({
+					loTitle,
+					error: "Failed to fetch HTML content",
+				});
+				return;
+			}
+
+			let updatedHtml = htmlContent;
+
+			// Process each image
+			images.forEach((image) => {
+				updatedHtml = this.updateImageInHtml(updatedHtml, image, loTitle);
+			});
+
+			// Save the updated HTML content
+			if (updatedHtml !== htmlContent) {
+				try {
+					await this.saveHtmlContent(loPath, updatedHtml);
+					this.results.filesProcessed++;
+					this.results.updatedFiles.push(loTitle);
+				} catch (error) {
+					this.results.errors.push({
+						loTitle,
+						error: error.message,
+					});
+				}
+			}
+		} catch (error) {
+			this.results.success = false;
+			this.results.errors.push({
+				error: error.message,
+			});
+		}
 	}
 }
