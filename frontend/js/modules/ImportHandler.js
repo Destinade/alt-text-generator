@@ -262,6 +262,37 @@ export class ImportHandler {
 			`
 					: ""
 			}
+
+			${
+				data.updateSummary.imageResults.needsFigure.length > 0
+					? `
+					<div class="figure-requirements">
+						<h4>Images Requiring Figure Elements</h4>
+						<p class="warning">⚠️ The following images need to be wrapped in figure elements before visual descriptions can be added:</p>
+						<table class="requirements-table">
+							<thead>
+								<tr>
+									<th>Learning Object</th>
+									<th>Image Source</th>
+								</tr>
+							</thead>
+							<tbody>
+								${data.updateSummary.imageResults.needsFigure
+									.map(
+										(item) => `
+										<tr>
+											<td>${item.loTitle}</td>
+											<td>${item.imageSource}</td>
+										</tr>
+									`
+									)
+									.join("")}
+							</tbody>
+						</table>
+					</div>
+				`
+					: ""
+			}
 		`;
 
 		const resultDiv = document.getElementById("exportResult");

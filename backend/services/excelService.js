@@ -51,10 +51,13 @@ export async function generateExcel(data) {
 		worksheet.getCell("B8").value = "Image Source";
 		worksheet.getCell("C8").value = "Generated Alt Text";
 		worksheet.getCell("D8").value = "Edited Alt Text";
-		worksheet.getCell("E8").value = "Is Decorative";
+		worksheet.getCell("E8").value = "Generated Visual Description";
+		worksheet.getCell("F8").value = "Edited Visual Description";
+		worksheet.getCell("G8").value = "Needs Visual Description";
+		worksheet.getCell("H8").value = "Is Decorative";
 
 		// Style headers
-		["A8", "B8", "C8", "D8", "E8"].forEach((cell) => {
+		["A8", "B8", "C8", "D8", "E8", "F8", "G8", "H8"].forEach((cell) => {
 			worksheet.getCell(cell).fill = {
 				type: "pattern",
 				pattern: "solid",
@@ -73,6 +76,9 @@ export async function generateExcel(data) {
 			{ width: 50 }, // Image Source
 			{ width: 50 }, // Generated Alt Text
 			{ width: 50 }, // Edited Alt Text
+			{ width: 60 }, // Generated Visual Description
+			{ width: 60 }, // Edited Visual Description
+			{ width: 15 }, // Needs Visual Description
 			{ width: 15 }, // Is Decorative
 		].map((col) => ({
 			...col,
@@ -89,14 +95,17 @@ export async function generateExcel(data) {
 				result.images.forEach((image) => {
 					const row = worksheet.getRow(currentRow);
 
-					row.getCell(1).value = result.name; // LO Title (Column A)
-					row.getCell(2).value = image.url; // Image Source (Column B)
-					row.getCell(3).value = image.altText || ""; // Generated Alt Text (Column C)
-					row.getCell(4).value = ""; // Empty Edited Alt Text (Column D)
-					row.getCell(5).value = false; // Is Decorative (Column E)
+					row.getCell(1).value = result.name; // LO Title
+					row.getCell(2).value = image.url; // Image Source
+					row.getCell(3).value = image.altText || ""; // Generated Alt Text
+					row.getCell(4).value = ""; // Empty Edited Alt Text
+					row.getCell(5).value = image.visualDescription || "Placeholder"; // Generated Visual Description
+					row.getCell(6).value = ""; // Empty Edited Visual Description
+					row.getCell(7).value = false; // Needs Visual Description
+					row.getCell(8).value = false; // Is Decorative
 
 					// Style read-only cells
-					["A", "B", "C"].forEach((col) => {
+					["A", "B", "C", "E"].forEach((col) => {
 						const cell = worksheet.getCell(`${col}${currentRow}`);
 						cell.fill = {
 							type: "pattern",
@@ -112,7 +121,7 @@ export async function generateExcel(data) {
 					});
 
 					// Style editable cells
-					["D", "E"].forEach((col) => {
+					["D", "F", "G", "H"].forEach((col) => {
 						const cell = worksheet.getCell(`${col}${currentRow}`);
 						cell.fill = null;
 						cell.alignment = {
@@ -122,14 +131,6 @@ export async function generateExcel(data) {
 						};
 					});
 
-					// Add data validation for decorative column
-					worksheet.getCell(`E${currentRow}`).dataValidation = {
-						type: "list",
-						allowBlank: false,
-						formulae: ['"TRUE,FALSE"'],
-					};
-
-					row.height = 60; // Set row height
 					currentRow++;
 				});
 			}

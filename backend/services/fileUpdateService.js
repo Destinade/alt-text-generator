@@ -13,10 +13,17 @@ export class FileUpdateService {
 				secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY,
 			},
 		});
+
+		this.results = {
+			imageResults: {
+				needsFigure: [],
+			},
+		};
 	}
 
 	async updateFiles(metadata, altTextData) {
-		const results = {
+		// Reset results at the start of each update operation
+		this.results = {
 			success: true,
 			filesProcessed: 0,
 			updatedFiles: [],
@@ -26,6 +33,7 @@ export class FileUpdateService {
 				successful: 0,
 				failed: 0,
 				failedImages: [],
+				needsFigure: [],
 			},
 		};
 
@@ -40,55 +48,27 @@ export class FileUpdateService {
 
 					// Track each image update
 					for (const image of images) {
-						const beforeUpdate = updatedHtml;
-						updatedHtml = this.updateImageInHtml(updatedHtml, image);
-
-						if (beforeUpdate === updatedHtml) {
-							// Check if the alt text is already the same
-							const imgTagRegex = new RegExp(
-								`<img[^>]*src=["']\\/?${image.imageSource.replace(
-									/^\//,
-									""
-								)}["'][^>]*alt=["']${image.editedAltText}["'][^>]*>`,
-								"i"
-							);
-
-							if (imgTagRegex.test(beforeUpdate)) {
-								// Alt text is already the same, consider it a success
-								results.imageResults.successful++;
-							} else {
-								// Image wasn't updated due to other reasons
-								results.imageResults.failed++;
-								results.imageResults.failedImages.push({
-									loTitle,
-									imageSource: image.imageSource,
-									error: "Failed to update image in HTML",
-								});
-							}
-						} else {
-							results.imageResults.successful++;
-						}
+						updatedHtml = this.updateImageInHtml(updatedHtml, image, loTitle);
 					}
 
 					await this.saveHtmlContent(loPath, updatedHtml);
-					results.filesProcessed++;
-					results.updatedFiles.push(loTitle);
+					this.results.filesProcessed++;
+					this.results.updatedFiles.push(loTitle);
 				} catch (error) {
-					results.errors.push({
+					this.results.errors.push({
 						loTitle,
 						error: error.message,
 					});
 				}
 			}
 		} catch (error) {
-			results.success = false;
-			results.errors.push({
-				error: "Failed to process files",
-				details: error.message,
+			this.results.success = false;
+			this.results.errors.push({
+				error: error.message,
 			});
 		}
 
-		return results;
+		return this.results;
 	}
 
 	async fetchHtmlContent(path) {
@@ -174,53 +154,138 @@ export class FileUpdateService {
 		return `dev${baseLink}/${loTitle}/index.html`.replace(/\/+/g, "/");
 	}
 
-	updateImageInHtml(htmlContent, image) {
-		// Remove leading slash and normalize the path
+	updateImageInHtml(htmlContent, image, loTitle) {
 		const normalizedSource = image.imageSource.replace(/^\//, "");
-
-		// Create a more flexible regex pattern that handles spaces and special characters
 		const imgPattern = normalizedSource
-			.replace(/[.*+?^${}()|[\]\\]/g, "\\$&") // Escape special regex characters
-			.replace(/\s+/g, "\\s+") // Handle multiple spaces
-			.replace(/\(/g, "\\(") // Escape parentheses
+			.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")
+			.replace(/\s+/g, "\\s+")
+			.replace(/\(/g, "\\(")
 			.replace(/\)/g, "\\)");
 
 		const regexPattern = new RegExp(
-			`<img[^>]*src=["']\\/?${imgPattern}["'][^>]*>`,
+			`<img\\s+[^>]*?src=["']\\/?${imgPattern}["'][^>]*?>`,
 			"gi"
 		);
 
-		console.log("Image update attempt:", {
-			originalSource: image.imageSource,
-			normalizedSource,
-			pattern: regexPattern.toString(),
-		});
+		// Check if image exists in HTML
+		const match = htmlContent.match(regexPattern);
+		if (!match) {
+			this.results.imageResults.failed++;
+			this.results.imageResults.failedImages.push({
+				loTitle,
+				imageSource: image.imageSource,
+				error: "Image not found in HTML",
+			});
+			return htmlContent;
+		}
 
-		let updated = false;
-		const updatedContent = htmlContent.replace(regexPattern, (match) => {
-			updated = true;
-			// Keep existing attributes except alt
-			const updatedTag = match.replace(
-				/alt=["'][^"']*["']/gi,
-				`alt="${image.editedAltText}"`
-			);
+		const imgTag = match[0];
+		const imgIndex = htmlContent.indexOf(imgTag);
+		const beforeImg = htmlContent.substring(0, imgIndex);
+		const afterImg = htmlContent.substring(imgIndex + imgTag.length);
+		const inFigure =
+			beforeImg.lastIndexOf("<figure") > beforeImg.lastIndexOf("</figure");
 
-			// If no alt attribute exists, add it before the closing >
-			if (!match.includes("alt=")) {
-				return updatedTag.replace(/>$/, ` alt="${image.editedAltText}">`);
+		try {
+			// Create new img tag with just the src and alt attributes first
+			let newImgTag = `<img src="${image.imageSource}" alt="${image.editedAltText}"`;
+
+			// Add any additional attributes needed
+			if (image.needsVisualDescription && inFigure) {
+				const descId = `desc_${Date.now()}_${Math.random()
+					.toString(36)
+					.substr(2, 9)}`;
+				newImgTag += ` aria-describedby="${descId}"`;
 			}
 
-			return updatedTag;
-		});
+			// Close the tag
+			newImgTag += ">";
 
-		// Log whether the update was successful
-		console.log(
-			`Image update ${updated ? "successful" : "failed"} for: ${
-				image.imageSource
-			}`
-		);
+			let updatedContent = htmlContent;
 
-		return updatedContent;
+			// Replace the old img tag with the new one
+			updatedContent = updatedContent.replace(imgTag, newImgTag);
+
+			if (inFigure && image.needsVisualDescription) {
+				// Find the containing figure element
+				const figureStartIndex = beforeImg.lastIndexOf("<figure");
+				const figureEndIndex =
+					updatedContent.indexOf("</figure>", imgIndex) + "</figure>".length;
+				const entireFigure = updatedContent.substring(
+					figureStartIndex,
+					figureEndIndex
+				);
+
+				// Generate unique IDs
+				const descId = `desc_${Date.now()}_${Math.random()
+					.toString(36)
+					.substr(2, 9)}`;
+				const creditId = `credit_${Date.now()}_${Math.random()
+					.toString(36)
+					.substr(2, 9)}`;
+
+				// Create updated figure content
+				let updatedFigure = entireFigure;
+
+				// Update or add figcaption
+				if (updatedFigure.includes("<figcaption")) {
+					const captionContent = `
+						<div class="caption-control">
+							<button type="button" data-type="edwin-description" aria-controls="${descId}" aria-expanded="false" aria-label="shows and hides the long description">Visual description</button>
+							<button type="button" data-type="edwin-credit" aria-controls="${creditId}" aria-expanded="false" aria-label="shows and hides the credits">Credit</button>
+						</div>
+						<aside id="${descId}" class="long-description" aria-hidden="true">
+							<p><strong>Visual description</strong>: ${image.editedVisualDescription}</p>
+						</aside>
+						<aside id="${creditId}" class="credit" aria-hidden="true">
+							<p><strong>Credit</strong>: ${image.credit || "Unknown"}</p>
+						</aside>`;
+
+					updatedFigure = updatedFigure.replace(
+						/<figcaption[^>]*>[\s\S]*?<\/figcaption>/,
+						`<figcaption>${captionContent}</figcaption>`
+					);
+				} else {
+					updatedFigure = updatedFigure.replace(
+						/<\/figure>/,
+						`<figcaption>
+							<div class="caption-control">
+								<button type="button" data-type="edwin-description" aria-controls="${descId}" aria-expanded="false" aria-label="shows and hides the long description">Visual description</button>
+								<button type="button" data-type="edwin-credit" aria-controls="${creditId}" aria-expanded="false" aria-label="shows and hides the credits">Credit</button>
+							</div>
+							<aside id="${descId}" class="long-description" aria-hidden="true">
+								<p><strong>Visual description</strong>: ${image.editedVisualDescription}</p>
+							</aside>
+							<aside id="${creditId}" class="credit" aria-hidden="true">
+								<p><strong>Credit</strong>: ${image.credit || "Unknown"}</p>
+							</aside>
+						</figcaption></figure>`
+					);
+				}
+
+				updatedContent =
+					updatedContent.substring(0, figureStartIndex) +
+					updatedFigure +
+					updatedContent.substring(figureEndIndex);
+			} else if (!inFigure && image.needsVisualDescription) {
+				this.results.imageResults.needsFigure.push({
+					loTitle,
+					imageSource: image.imageSource,
+				});
+			}
+
+			// Only increment success counter if we reach this point
+			this.results.imageResults.successful++;
+			return updatedContent;
+		} catch (error) {
+			this.results.imageResults.failed++;
+			this.results.imageResults.failedImages.push({
+				loTitle,
+				imageSource: image.imageSource,
+				error: error.message || "Error updating image",
+			});
+			return htmlContent;
+		}
 	}
 
 	escapeRegExp(string) {

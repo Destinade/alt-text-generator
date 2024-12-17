@@ -69,12 +69,22 @@ export async function parseExcelFile(buffer) {
 					worksheet.getCell(`C${currentRow}`).value?.toString() || "",
 				editedAltText:
 					worksheet.getCell(`D${currentRow}`).value?.toString() || "",
-				isDecorative: worksheet.getCell(`E${currentRow}`).value === true,
+				generatedVisualDescription:
+					worksheet.getCell(`E${currentRow}`).value?.toString() || "",
+				editedVisualDescription:
+					worksheet.getCell(`F${currentRow}`).value?.toString() || "",
+				needsVisualDescription:
+					worksheet.getCell(`G${currentRow}`).value === true,
+				isDecorative: worksheet.getCell(`H${currentRow}`).value === true,
 			};
 
 			console.log(`Processing row ${currentRow}:`, row);
 
-			if (row.editedAltText || row.isDecorative) {
+			if (
+				row.editedAltText ||
+				row.isDecorative ||
+				row.editedVisualDescription
+			) {
 				altTextData.push(row);
 			}
 

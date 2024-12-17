@@ -190,11 +190,11 @@ export default async function handler(req, res) {
 					const mimeType = imageResponse.ContentType || "image/jpeg";
 					const imageDataUrl = `data:${mimeType};base64,${imageBase64}`;
 
-					// Vision API call with timeout
+					// Vision API call with timeout for both alt text and visual description
 					try {
 						console.log("Calling Vision API...");
 						const controller = new AbortController();
-						const timeoutId = setTimeout(() => controller.abort(), 5000); // 5 seconds timeout
+						const timeoutId = setTimeout(() => controller.abort(), 5000);
 
 						const visionResponse = await fetch(
 							"https://nellie-backend.vercel.app/vision",
@@ -223,6 +223,7 @@ export default async function handler(req, res) {
 						return {
 							src: imgSrc,
 							altText: result.altText,
+							visualDescription: result.visualDescription || result.altText, // Fallback to alt text if no visual description
 							imageData: imageDataUrl,
 							status: "success",
 						};
