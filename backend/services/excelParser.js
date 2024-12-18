@@ -83,7 +83,8 @@ export async function parseExcelFile(buffer) {
 			if (
 				row.editedAltText ||
 				row.isDecorative ||
-				row.editedVisualDescription
+				row.editedVisualDescription ||
+				row.needsVisualDescription
 			) {
 				altTextData.push(row);
 			}

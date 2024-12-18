@@ -168,31 +168,29 @@ export class FileUpdateService {
 	}
 
 	groupByLO(altTextData) {
-		console.log("Grouping data:", JSON.stringify(altTextData[0], null, 2));
 		const groups = {};
 		altTextData.forEach((item) => {
 			if (!groups[item.loTitle]) {
 				groups[item.loTitle] = [];
 			}
-			// Preserve all properties from the original data
+			// Add default values for visual description fields if they don't exist
 			groups[item.loTitle].push({
 				loTitle: item.loTitle,
 				imageSource: item.imageSource,
 				generatedAltText: item.generatedAltText,
 				editedAltText: item.editedAltText,
-				generatedVisualDescription: item.generatedVisualDescription,
-				editedVisualDescription: item.editedVisualDescription,
-				needsVisualDescription:
-					item.needsVisualDescription === true ||
-					item.needsVisualDescription === "TRUE",
-				isDecorative: item.isDecorative,
+				generatedVisualDescription:
+					item.generatedVisualDescription || item.generatedAltText,
+				editedVisualDescription:
+					item.editedVisualDescription ||
+					item.generatedVisualDescription ||
+					item.generatedAltText,
+				needsVisualDescription: true, // Default to true since we want visual descriptions
+				isDecorative:
+					item.isDecorative === true || item.isDecorative === "TRUE",
 				credit: item.credit || "Unknown",
 			});
 		});
-		console.log(
-			"First grouped item:",
-			JSON.stringify(groups[Object.keys(groups)[0]][0], null, 2)
-		);
 		return groups;
 	}
 
@@ -201,11 +199,13 @@ export class FileUpdateService {
 	}
 
 	updateImageInHtml(htmlContent, image, loTitle) {
-		console.log("Full image data:", JSON.stringify(image, null, 2));
+		console.log("Processing image with visual desc:", {
+			source: image.imageSource,
+			needsVisualDesc: true, // Always true for now
+			visualDesc: image.editedVisualDescription || image.generatedAltText,
+		});
 
-		// Initialize updatedContent at the start
 		let updatedContent = htmlContent;
-
 		const normalizedSource = image.imageSource.replace(/^\//, "");
 		const imgPattern = normalizedSource
 			.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")
@@ -217,11 +217,6 @@ export class FileUpdateService {
 		);
 
 		const match = htmlContent.match(regexPattern);
-		console.log("Image match result:", {
-			pattern: regexPattern,
-			found: !!match,
-		});
-
 		if (!match) {
 			console.log("Image not found in HTML");
 			this.results.imageResults.failed++;
@@ -238,33 +233,14 @@ export class FileUpdateService {
 			const imgIndex = updatedContent.indexOf(imgTag);
 			const beforeImg = updatedContent.substring(0, imgIndex);
 
-			// Check if image is in a figure element
+			// Check if image is in a figure
 			const inFigure =
 				beforeImg.lastIndexOf("<figure") > beforeImg.lastIndexOf("</figure");
-			console.log("Image context:", {
-				inFigure,
-				needsVisualDesc: image.needsVisualDescription,
-				visualDesc: image.editedVisualDescription,
-			});
 
-			// Create new img tag with aria-describedby
-			const descId = `desc_${Date.now()}_${Math.random()
-				.toString(36)
-				.substr(2, 9)}`;
-			const creditId = `credit_${Date.now()}_${Math.random()
-				.toString(36)
-				.substr(2, 9)}`;
-
-			let newImgTag = `<img src="${image.imageSource}" alt="${image.editedAltText}"`;
-			if (image.needsVisualDescription && inFigure) {
-				newImgTag += ` aria-describedby="${descId}"`;
-			}
-			newImgTag += ">";
-
-			// Replace the img tag first
-			updatedContent = updatedContent.replace(imgTag, newImgTag);
-
-			if (inFigure && image.needsVisualDescription) {
+			// Always add visual description if in figure
+			if (inFigure) {
+				const descId = `desc-${Math.random().toString(36).substr(2, 9)}`;
+				const creditId = `credit-${Math.random().toString(36).substr(2, 9)}`;
 				const figureStartIndex = beforeImg.lastIndexOf("<figure");
 				const figureEndIndex =
 					updatedContent.indexOf("</figure>", imgIndex) + "</figure>".length;
@@ -273,6 +249,11 @@ export class FileUpdateService {
 					figureEndIndex
 				);
 
+				const visualDesc =
+					image.editedVisualDescription ||
+					image.generatedVisualDescription ||
+					image.generatedAltText;
+
 				const figcaptionContent = `
 					<figcaption>
 						<div class="caption-control">
@@ -280,7 +261,7 @@ export class FileUpdateService {
 							<button type="button" data-type="edwin-credit" aria-controls="${creditId}" aria-expanded="false" aria-label="shows and hides the credits">Credit</button>
 						</div>
 						<aside id="${descId}" class="long-description" aria-hidden="true">
-							<p><strong>Visual description</strong>: ${image.editedVisualDescription}</p>
+							<p><strong>Visual description</strong>: ${visualDesc}</p>
 						</aside>
 						<aside id="${creditId}" class="credit" aria-hidden="true">
 							<p><strong>Credit</strong>: ${image.credit || "Unknown"}</p>

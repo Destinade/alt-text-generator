@@ -27,11 +27,16 @@ export async function parseJsonFile(buffer) {
 					throw new Error("Invalid row data. Missing required fields.");
 				}
 
+				console.log(Boolean(row.needsVisualDescription));
+
 				return {
 					loTitle: row.loTitle || "",
 					imageSource: row.imageSource,
 					generatedAltText: row.generatedAltText || "",
 					editedAltText: row.editedAltText || "",
+					generatedVisualDescription: row.generatedVisualDescription || "",
+					editedVisualDescription: row.editedVisualDescription || "",
+					needsVisualDescription: Boolean(row.needsVisualDescription),
 					isDecorative: Boolean(row.isDecorative),
 				};
 			})

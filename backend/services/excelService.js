@@ -13,7 +13,7 @@ export async function generateExcel(data) {
 		worksheet.getCell("A2").value = "Link:";
 		worksheet.getCell(
 			"B2"
-		).value = `@https://edwincontent.nelsontechdev.com/${data.projectId}/`;
+		).value = `https://edwincontent.nelsontechdev.com/${data.projectId}/`;
 		worksheet.getCell("A3").value = "Generated:";
 		worksheet.getCell("B3").value = new Date().toLocaleString("en-US", {
 			year: "numeric",

@@ -56,10 +56,11 @@ export default async function handler(req, res) {
 		// Handle multiple LOs
 		const stats = data.stats;
 		const results = data.results;
+		const projectId = data.projectId;
 
 		// Generate combined files for all successful LOs
 		const [excelBuffer, pdfBuffer] = await Promise.all([
-			generateExcel({ stats, results }),
+			generateExcel({ stats, results, projectId }),
 			generatePDF({ stats, results }),
 		]);
 

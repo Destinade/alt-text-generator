@@ -211,14 +211,25 @@ export default async function handler(req, res) {
 				.length,
 		};
 
+		const result = {
+			stats: {
+				total: learningObjects.length,
+				successful: results.filter(
+					(r) => r.status === "fulfilled" && r.value.success
+				).length,
+				failed: results.filter(
+					(r) => r.status === "rejected" || !r.value.success
+				).length,
+			},
+			projectId,
+			results: results.map((r) =>
+				r.status === "fulfilled" ? r.value : r.reason
+			),
+		};
+
 		res.status(200).json({
 			success: true,
-			data: {
-				stats,
-				results: results.map((r) =>
-					r.status === "fulfilled" ? r.value : r.reason
-				),
-			},
+			data: result,
 		});
 	} catch (error) {
 		console.error("Error in handler:", error);
