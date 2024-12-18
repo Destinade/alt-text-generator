@@ -24,13 +24,36 @@ export class StandardizationService {
 	standardizeAltTextData(altTextData) {
 		if (!Array.isArray(altTextData)) return [];
 
-		return altTextData.map((item) => ({
-			loTitle: this.standardizeString(item.loTitle),
-			imageSource: this.standardizePath(item.imageSource),
-			generatedAltText: this.standardizeString(item.generatedAltText),
-			editedAltText: this.standardizeString(item.editedAltText),
-			isDecorative: this.standardizeBoolean(item.isDecorative),
-		}));
+		return altTextData.map((item) => {
+			console.log("Standardizing item:", {
+				before: {
+					editedVisDesc: item.editedVisualDescription,
+					genVisDesc: item.generatedVisualDescription,
+				},
+			});
+
+			const standardized = {
+				loTitle: this.standardizeString(item.loTitle),
+				imageSource: this.standardizePath(item.imageSource),
+				generatedAltText: this.standardizeString(item.generatedAltText),
+				editedAltText: this.standardizeString(item.editedAltText),
+				editedVisualDescription: this.standardizeString(
+					item.editedVisualDescription
+				),
+				generatedVisualDescription: this.standardizeString(
+					item.generatedVisualDescription
+				),
+				needsVisualDescription: true,
+				isDecorative: this.standardizeBoolean(item.isDecorative),
+			};
+
+			console.log("After standardization:", {
+				editedVisDesc: standardized.editedVisualDescription,
+				genVisDesc: standardized.generatedVisualDescription,
+			});
+
+			return standardized;
+		});
 	}
 
 	standardizeString(value) {

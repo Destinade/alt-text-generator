@@ -154,26 +154,26 @@ export class FileUpdateService {
 	groupByLO(altTextData) {
 		const groups = {};
 		altTextData.forEach((item) => {
+			console.log("groupByLO raw item:", item);
+
 			if (!groups[item.loTitle]) {
 				groups[item.loTitle] = [];
 			}
-			// Add default values for visual description fields if they don't exist
+
 			groups[item.loTitle].push({
-				loTitle: item.loTitle,
+				...item,
 				imageSource: item.imageSource,
-				generatedAltText: item.generatedAltText,
 				editedAltText: item.editedAltText,
-				generatedVisualDescription:
-					item.generatedVisualDescription || item.generatedAltText,
-				editedVisualDescription:
-					item.editedVisualDescription ||
-					item.generatedVisualDescription ||
-					item.generatedAltText,
-				needsVisualDescription: item.needsVisualDescription === true, // Preserve the original boolean value
-				isDecorative:
-					item.isDecorative === true || item.isDecorative === "TRUE",
-				credit: item.credit || "Unknown",
+				editedVisualDescription: item.editedVisualDescription,
+				generatedVisualDescription: item.generatedVisualDescription,
+				needsVisualDescription: true,
+				isDecorative: item.isDecorative || false,
 			});
+
+			console.log(
+				"groupByLO processed item:",
+				groups[item.loTitle][groups[item.loTitle].length - 1]
+			);
 		});
 		return groups;
 	}
@@ -182,100 +182,105 @@ export class FileUpdateService {
 		return `dev${baseLink}/${loTitle}/index.html`.replace(/\/+/g, "/");
 	}
 
-	updateImageInHtml(htmlContent, image, loTitle) {
+	updateImageInHtml(htmlContent, image) {
 		try {
-			console.log("Attempting to update image:", {
-				source: image.imageSource,
-				newAltText: image.editedAltText,
-				isDecorative: image.isDecorative,
-			});
-
-			let updatedHtml = htmlContent;
-			const normalizedSource = image.imageSource.replace(/^\//, "");
-
-			// Create a more flexible regex pattern
-			const imgRegex = new RegExp(
-				`<img[^>]*src=["']/?${normalizedSource.replace(
-					/[.*+?^${}()|[\]\\]/g,
-					"\\$&"
-				)}["'][^>]*>`,
-				"gi"
+			console.log(
+				"Raw HTML snippet:",
+				htmlContent.substring(
+					Math.max(0, htmlContent.indexOf(image.imageSource) - 100),
+					Math.min(
+						htmlContent.length,
+						htmlContent.indexOf(image.imageSource) + 100
+					)
+				)
 			);
 
-			// Log the current match
-			const currentMatch = htmlContent.match(imgRegex);
-			console.log("Current image tag:", currentMatch);
+			// Normalize image source paths for comparison
+			const normalizedSource = image.imageSource.replace(/^\//, "");
 
-			// Create replacement tag based on decorative status
-			const replacement = image.isDecorative
-				? `<img src="${image.imageSource}" role="presentation" alt="" />`
-				: `<img src="${image.imageSource}" alt="${image.editedAltText}" />`;
+			// First, try to find if the image is in a figure
+			const figureRegex = new RegExp(
+				`<figure[^>]*>\\s*<img[^>]*src=["']\/?${normalizedSource}["'][^>]*>\\s*(?:<figcaption[^>]*>.*?</figcaption>)?\\s*</figure>`,
+				"g"
+			);
 
-			console.log("Replacement tag:", replacement);
+			// Separate regex for standalone images
+			const imgRegex = new RegExp(
+				`<img[^>]*src=["']\/?${normalizedSource}["'][^>]*>`,
+				"g"
+			);
 
-			// Replace the image tag and check if content changed
-			const beforeLength = updatedHtml.length;
-			updatedHtml = updatedHtml.replace(imgRegex, replacement);
-			const afterLength = updatedHtml.length;
-
-			console.log("Update results:", {
-				beforeLength,
-				afterLength,
-				changed: beforeLength !== afterLength,
-				matchFound: currentMatch !== null,
+			console.log("Image data:", {
+				source: image.imageSource,
+				needsVisualDescription: image.needsVisualDescription,
+				editedVisualDescription: image.editedVisualDescription,
+				editedAltText: image.editedAltText,
 			});
 
-			// Check if we're in a figure and need visual description
-			if (image.needsVisualDescription) {
-				const beforeImg = updatedHtml.substring(
-					0,
-					updatedHtml.indexOf(replacement)
-				);
-				const inFigure =
-					beforeImg.lastIndexOf("<figure") > beforeImg.lastIndexOf("</figure");
+			let replacement;
+			const hasFigure = figureRegex.test(htmlContent);
 
-				if (inFigure) {
-					const descId = `desc-${Math.random().toString(36).substr(2, 9)}`;
-					const creditId = `credit-${Math.random().toString(36).substr(2, 9)}`;
+			if (image.needsVisualDescription && image.editedVisualDescription) {
+				// Generate unique IDs for accessibility
+				const descId = `desc_${image.imageSource.replace(
+					/[^a-zA-Z0-9]/g,
+					"_"
+				)}`;
+				const creditId = `credit_${image.imageSource.replace(
+					/[^a-zA-Z0-9]/g,
+					"_"
+				)}`;
 
-					const figcaptionContent = `
-						<figcaption>
-							<div class="caption-control">
-								<button type="button" data-type="edwin-description" aria-controls="${descId}" aria-expanded="false">Visual description</button>
-								<button type="button" data-type="edwin-credit" aria-controls="${creditId}" aria-expanded="false">Credit</button>
-							</div>
-							<aside id="${descId}" class="long-description" aria-hidden="true">
-								<p><strong>Visual description</strong>: ${
-									image.editedVisualDescription ||
-									image.generatedVisualDescription
-								}</p>
-							</aside>
-							<aside id="${creditId}" class="credit" aria-hidden="true">
-								<p><strong>Credit</strong>: ${image.credit || "Unknown"}</p>
-							</aside>
-						</figcaption>
-					`;
-
-					// Find the figure element and update/add figcaption
-					const figureRegex = /<figure[^>]*>[\s\S]*?<\/figure>/gi;
-					const figureMatch = updatedHtml.match(figureRegex);
-
-					if (figureMatch) {
-						const updatedFigure = figureMatch[0].replace(
-							/<figcaption[\s\S]*?<\/figcaption>|<\/figure>/i,
-							(match) =>
-								match.includes("</figure>")
-									? `${figcaptionContent}</figure>`
-									: figcaptionContent
-						);
-						updatedHtml = updatedHtml.replace(figureRegex, updatedFigure);
-					}
-				}
+				replacement = `<figure>
+				<img src="${image.imageSource}" alt="${
+					image.editedAltText
+				}" aria-describedby="${descId}" />
+				<figcaption>
+					<div class="caption-control">
+						<button type="button" data-type="edwin-description" aria-controls="${descId}" aria-expanded="false" aria-label="shows and hides the long description">Visual description</button>
+						<button type="button" data-type="edwin-credit" aria-controls="${creditId}" aria-expanded="false" aria-label="shows and hides the credits">Credit</button>
+					</div>
+					<aside id="${descId}" class="long-description" aria-hidden="true">
+						<p><strong>Visual description</strong>: ${image.editedVisualDescription}</p>
+					</aside>
+					<aside id="${creditId}" class="credit" aria-hidden="true">
+						<p><strong>Credit</strong>: ${image.credit || "Unknown"}</p>
+					</aside>
+				</figcaption>
+			</figure>`;
+				console.log("Created figure with visual description:", replacement);
+			} else if (hasFigure) {
+				// If it's already in a figure, preserve it but update the img tag
+				replacement = `<figure>
+					<img src="${image.imageSource}" alt="${image.editedAltText}" />
+				</figure>`;
+			} else {
+				// Standalone image
+				replacement = `<img src="${image.imageSource}" alt="${image.editedAltText}" />`;
 			}
+
+			// Try figure replacement first, then fallback to img replacement
+			let updatedHtml = htmlContent;
+			if (hasFigure) {
+				updatedHtml = htmlContent.replace(figureRegex, replacement);
+			} else {
+				updatedHtml = htmlContent.replace(imgRegex, replacement);
+			}
+
+			console.log(
+				"After replacement HTML snippet:",
+				updatedHtml.substring(
+					Math.max(0, updatedHtml.indexOf(image.imageSource) - 100),
+					Math.min(
+						updatedHtml.length,
+						updatedHtml.indexOf(image.imageSource) + 100
+					)
+				)
+			);
 
 			return updatedHtml;
 		} catch (error) {
-			console.error("Error updating image in HTML:", error);
+			console.error("Error in updateImageInHtml:", error);
 			return htmlContent;
 		}
 	}
@@ -304,10 +309,15 @@ export class FileUpdateService {
 
 			// Process each image
 			images.forEach((image) => {
-				const needsVisualDesc = image.needsVisualDescription === true; // Explicitly check for true
+				console.log("Processing image in LO:", {
+					source: image.imageSource,
+					editedVisualDesc: image.editedVisualDescription,
+					needsVisualDesc: image.needsVisualDescription,
+				});
+
 				updatedHtml = this.updateImageInHtml(updatedHtml, {
-					...image,
-					needsVisualDesc, // Pass the correct boolean value
+					...image, // Spread all properties
+					needsVisualDescription: true,
 				});
 			});
 
@@ -353,7 +363,7 @@ export class FileUpdateService {
 
 			for (const image of images) {
 				const beforeUpdate = updatedHtml;
-				updatedHtml = this.updateImageInHtml(updatedHtml, image, loTitle);
+				updatedHtml = this.updateImageInHtml(updatedHtml, image);
 
 				// Check if this image update changed the content
 				if (beforeUpdate !== updatedHtml) {

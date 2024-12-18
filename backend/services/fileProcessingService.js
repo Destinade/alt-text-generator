@@ -84,12 +84,11 @@ export class FileProcessingService {
 				};
 			}
 
-			// Add debug logging before file updates
-			console.log("Starting file updates with detailed data:", {
-				metadata: standardizedData.metadata,
-				altTextCount: standardizedData.altTextData.length,
-				sampleData: standardizedData.altTextData[0], // Log first item for debugging
-			});
+			// Add debug logging before mapping
+			console.log(
+				"Raw alt text data before mapping:",
+				standardizedData.altTextData[0]
+			);
 
 			// Ensure the fileUpdater has the correct path
 			const projectPath = standardizedData.metadata.relativeLink.replace(
@@ -100,16 +99,29 @@ export class FileProcessingService {
 			const updateResults = await this.fileUpdater.updateFiles(
 				{
 					...standardizedData.metadata,
-					projectPath, // Add explicit project path
+					projectPath,
 				},
-				standardizedData.altTextData.map((item) => ({
-					...item,
-					// Ensure paths are properly formatted
-					imageSource: item.imageSource.startsWith("/")
-						? item.imageSource
-						: `/${item.imageSource}`,
-					loTitle: item.loTitle.trim(),
-				}))
+				standardizedData.altTextData.map((item) => {
+					console.log("Pre-mapping item:", {
+						loTitle: item.loTitle,
+						visualDesc: item.editedVisualDescription,
+						genVisualDesc: item.generatedVisualDescription,
+						// Log all properties to see what we have
+						allProps: Object.keys(item),
+					});
+
+					return {
+						...item, // Spread all properties first
+						imageSource: item.imageSource.startsWith("/")
+							? item.imageSource
+							: `/${item.imageSource}`,
+						loTitle: item.loTitle.trim(),
+						needsVisualDescription: true,
+						// Explicitly map visual description fields
+						editedVisualDescription: item.editedVisualDescription,
+						generatedVisualDescription: item.generatedVisualDescription,
+					};
+				})
 			);
 
 			// Add debug logging after updates
