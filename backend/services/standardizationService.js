@@ -8,6 +8,8 @@ export class StandardizationService {
 			...data,
 			metadata: this.standardizeMetadata(data.metadata),
 			altTextData: this.standardizeAltTextData(data.altTextData),
+			needsVisualDescription: data.needsVisualDescription === true,
+			isDecorative: data.isDecorative === true,
 		};
 	}
 

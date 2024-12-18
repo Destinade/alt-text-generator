@@ -101,8 +101,8 @@ export async function generateExcel(data) {
 					row.getCell(4).value = ""; // Empty Edited Alt Text
 					row.getCell(5).value = image.visualDescription || "Placeholder"; // Generated Visual Description
 					row.getCell(6).value = ""; // Empty Edited Visual Description
-					row.getCell(7).value = false; // Needs Visual Description
-					row.getCell(8).value = false; // Is Decorative
+					row.getCell(7).value = Boolean(image.needsVisualDescription); // Needs Visual Description
+					row.getCell(8).value = Boolean(image.isDecorative); // Is Decorative
 
 					// Style read-only cells
 					["A", "B", "C", "E"].forEach((col) => {

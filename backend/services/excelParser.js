@@ -74,8 +74,11 @@ export async function parseExcelFile(buffer) {
 				editedVisualDescription:
 					worksheet.getCell(`F${currentRow}`).value?.toString() || "",
 				needsVisualDescription:
-					worksheet.getCell(`G${currentRow}`).value === true,
-				isDecorative: worksheet.getCell(`H${currentRow}`).value === true,
+					String(worksheet.getCell(`G${currentRow}`).value).toUpperCase() ===
+					"TRUE",
+				isDecorative:
+					String(worksheet.getCell(`H${currentRow}`).value).toUpperCase() ===
+					"TRUE",
 			};
 
 			console.log(`Processing row ${currentRow}:`, row);

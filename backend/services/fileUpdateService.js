@@ -22,80 +22,64 @@ export class FileUpdateService {
 	}
 
 	async updateFiles(metadata, altTextData) {
-		console.log("Starting updateFiles with:", {
-			metadata,
-			altTextDataLength: altTextData.length,
-		});
-
-		// Reset results
-		this.results = {
-			success: true,
-			filesProcessed: 0,
-			updatedFiles: [],
-			errors: [],
-			imageResults: {
-				total: altTextData.length,
-				successful: 0,
-				failed: 0,
-				failedImages: [],
-				needsFigure: [],
-			},
-		};
-
 		try {
-			const loGroups = this.groupByLO(altTextData);
-			console.log("Grouped by LO:", loGroups);
+			console.log("FileUpdateService: Starting update with:", {
+				projectPath: metadata.projectPath,
+				altTextCount: altTextData.length,
+			});
 
-			for (const [loTitle, images] of Object.entries(loGroups)) {
+			// Group images by LO
+			const groupedByLO = this.groupByLO(altTextData);
+
+			const results = {
+				success: true,
+				filesProcessed: 0,
+				updatedFiles: [],
+				errors: [],
+				imageResults: {
+					total: altTextData.length,
+					successful: 0,
+					failed: 0,
+					failedImages: [],
+					needsFigure: [],
+				},
+			};
+
+			// Process each LO
+			for (const [loTitle, images] of Object.entries(groupedByLO)) {
 				try {
-					const loPath = this.constructLoPath(metadata.relativeLink, loTitle);
-					console.log("Processing LO:", {
+					const updated = await this.updateLOFile(
+						metadata.projectPath,
 						loTitle,
-						loPath,
-						imageCount: images.length,
-					});
-
-					const htmlContent = await this.fetchHtmlContent(loPath);
-					console.log("Fetched HTML content length:", htmlContent.length);
-
-					let updatedHtml = htmlContent;
-
-					for (const image of images) {
-						console.log("Processing image:", {
-							source: image.imageSource,
-							needsVisualDesc: image.needsVisualDescription,
-							visualDesc: image.editedVisualDescription,
-						});
-
-						updatedHtml = this.updateImageInHtml(updatedHtml, image, loTitle);
-					}
-
-					if (updatedHtml !== htmlContent) {
-						console.log("HTML content changed, saving updates...");
-						await this.saveHtmlContent(loPath, updatedHtml);
-						this.results.filesProcessed++;
-						this.results.updatedFiles.push(loTitle);
-					} else {
-						console.log("No changes detected in HTML content");
+						images
+					);
+					if (updated) {
+						results.filesProcessed++;
+						results.updatedFiles.push(loTitle);
+						results.imageResults.successful += images.length;
 					}
 				} catch (error) {
-					console.error("Error processing LO:", { loTitle, error });
-					this.results.errors.push({
+					console.error(`Error updating LO ${loTitle}:`, error);
+					results.errors.push({
 						loTitle,
 						error: error.message,
 					});
+					results.imageResults.failed += images.length;
+					images.forEach((img) => {
+						results.imageResults.failedImages.push({
+							loTitle,
+							imageSource: img.imageSource,
+							error: error.message,
+						});
+					});
 				}
 			}
+
+			return results;
 		} catch (error) {
 			console.error("Error in updateFiles:", error);
-			this.results.success = false;
-			this.results.errors.push({
-				error: error.message,
-			});
+			throw error;
 		}
-
-		console.log("Update results:", this.results);
-		return this.results;
 	}
 
 	async fetchHtmlContent(path) {
@@ -185,7 +169,7 @@ export class FileUpdateService {
 					item.editedVisualDescription ||
 					item.generatedVisualDescription ||
 					item.generatedAltText,
-				needsVisualDescription: true, // Default to true since we want visual descriptions
+				needsVisualDescription: item.needsVisualDescription === true, // Preserve the original boolean value
 				isDecorative:
 					item.isDecorative === true || item.isDecorative === "TRUE",
 				credit: item.credit || "Unknown",
@@ -199,104 +183,99 @@ export class FileUpdateService {
 	}
 
 	updateImageInHtml(htmlContent, image, loTitle) {
-		console.log("Processing image with visual desc:", {
-			source: image.imageSource,
-			needsVisualDesc: true, // Always true for now
-			visualDesc: image.editedVisualDescription || image.generatedAltText,
-		});
-
-		let updatedContent = htmlContent;
-		const normalizedSource = image.imageSource.replace(/^\//, "");
-		const imgPattern = normalizedSource
-			.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")
-			.replace(/\s+/g, "\\s+");
-
-		const regexPattern = new RegExp(
-			`<img[^>]*src=["']\\/?${imgPattern}["'][^>]*>`,
-			"gi"
-		);
-
-		const match = htmlContent.match(regexPattern);
-		if (!match) {
-			console.log("Image not found in HTML");
-			this.results.imageResults.failed++;
-			this.results.imageResults.failedImages.push({
-				loTitle,
-				imageSource: image.imageSource,
-				error: "Image not found in HTML",
-			});
-			return htmlContent;
-		}
-
 		try {
-			const imgTag = match[0];
-			const imgIndex = updatedContent.indexOf(imgTag);
-			const beforeImg = updatedContent.substring(0, imgIndex);
+			console.log("Attempting to update image:", {
+				source: image.imageSource,
+				newAltText: image.editedAltText,
+				isDecorative: image.isDecorative,
+			});
 
-			// Check if image is in a figure
-			const inFigure =
-				beforeImg.lastIndexOf("<figure") > beforeImg.lastIndexOf("</figure");
+			let updatedHtml = htmlContent;
+			const normalizedSource = image.imageSource.replace(/^\//, "");
 
-			// Always add visual description if in figure
-			if (inFigure) {
-				const descId = `desc-${Math.random().toString(36).substr(2, 9)}`;
-				const creditId = `credit-${Math.random().toString(36).substr(2, 9)}`;
-				const figureStartIndex = beforeImg.lastIndexOf("<figure");
-				const figureEndIndex =
-					updatedContent.indexOf("</figure>", imgIndex) + "</figure>".length;
-				const entireFigure = updatedContent.substring(
-					figureStartIndex,
-					figureEndIndex
+			// Create a more flexible regex pattern
+			const imgRegex = new RegExp(
+				`<img[^>]*src=["']/?${normalizedSource.replace(
+					/[.*+?^${}()|[\]\\]/g,
+					"\\$&"
+				)}["'][^>]*>`,
+				"gi"
+			);
+
+			// Log the current match
+			const currentMatch = htmlContent.match(imgRegex);
+			console.log("Current image tag:", currentMatch);
+
+			// Create replacement tag based on decorative status
+			const replacement = image.isDecorative
+				? `<img src="${image.imageSource}" role="presentation" alt="" />`
+				: `<img src="${image.imageSource}" alt="${image.editedAltText}" />`;
+
+			console.log("Replacement tag:", replacement);
+
+			// Replace the image tag and check if content changed
+			const beforeLength = updatedHtml.length;
+			updatedHtml = updatedHtml.replace(imgRegex, replacement);
+			const afterLength = updatedHtml.length;
+
+			console.log("Update results:", {
+				beforeLength,
+				afterLength,
+				changed: beforeLength !== afterLength,
+				matchFound: currentMatch !== null,
+			});
+
+			// Check if we're in a figure and need visual description
+			if (image.needsVisualDescription) {
+				const beforeImg = updatedHtml.substring(
+					0,
+					updatedHtml.indexOf(replacement)
 				);
+				const inFigure =
+					beforeImg.lastIndexOf("<figure") > beforeImg.lastIndexOf("</figure");
 
-				const visualDesc =
-					image.editedVisualDescription ||
-					image.generatedVisualDescription ||
-					image.generatedAltText;
+				if (inFigure) {
+					const descId = `desc-${Math.random().toString(36).substr(2, 9)}`;
+					const creditId = `credit-${Math.random().toString(36).substr(2, 9)}`;
 
-				const figcaptionContent = `
-					<figcaption>
-						<div class="caption-control">
-							<button type="button" data-type="edwin-description" aria-controls="${descId}" aria-expanded="false" aria-label="shows and hides the long description">Visual description</button>
-							<button type="button" data-type="edwin-credit" aria-controls="${creditId}" aria-expanded="false" aria-label="shows and hides the credits">Credit</button>
-						</div>
-						<aside id="${descId}" class="long-description" aria-hidden="true">
-							<p><strong>Visual description</strong>: ${visualDesc}</p>
-						</aside>
-						<aside id="${creditId}" class="credit" aria-hidden="true">
-							<p><strong>Credit</strong>: ${image.credit || "Unknown"}</p>
-						</aside>
-					</figcaption>`;
+					const figcaptionContent = `
+						<figcaption>
+							<div class="caption-control">
+								<button type="button" data-type="edwin-description" aria-controls="${descId}" aria-expanded="false">Visual description</button>
+								<button type="button" data-type="edwin-credit" aria-controls="${creditId}" aria-expanded="false">Credit</button>
+							</div>
+							<aside id="${descId}" class="long-description" aria-hidden="true">
+								<p><strong>Visual description</strong>: ${
+									image.editedVisualDescription ||
+									image.generatedVisualDescription
+								}</p>
+							</aside>
+							<aside id="${creditId}" class="credit" aria-hidden="true">
+								<p><strong>Credit</strong>: ${image.credit || "Unknown"}</p>
+							</aside>
+						</figcaption>
+					`;
 
-				let updatedFigure = entireFigure;
-				if (updatedFigure.includes("<figcaption")) {
-					updatedFigure = updatedFigure.replace(
-						/<figcaption[^>]*>[\s\S]*?<\/figcaption>/,
-						figcaptionContent
-					);
-				} else {
-					updatedFigure = updatedFigure.replace(
-						/<\/figure>/,
-						`${figcaptionContent}</figure>`
-					);
+					// Find the figure element and update/add figcaption
+					const figureRegex = /<figure[^>]*>[\s\S]*?<\/figure>/gi;
+					const figureMatch = updatedHtml.match(figureRegex);
+
+					if (figureMatch) {
+						const updatedFigure = figureMatch[0].replace(
+							/<figcaption[\s\S]*?<\/figcaption>|<\/figure>/i,
+							(match) =>
+								match.includes("</figure>")
+									? `${figcaptionContent}</figure>`
+									: figcaptionContent
+						);
+						updatedHtml = updatedHtml.replace(figureRegex, updatedFigure);
+					}
 				}
-
-				updatedContent =
-					updatedContent.substring(0, figureStartIndex) +
-					updatedFigure +
-					updatedContent.substring(figureEndIndex);
 			}
 
-			this.results.imageResults.successful++;
-			return updatedContent;
+			return updatedHtml;
 		} catch (error) {
-			console.error("Error updating image:", error);
-			this.results.imageResults.failed++;
-			this.results.imageResults.failedImages.push({
-				loTitle,
-				imageSource: image.imageSource,
-				error: error.message,
-			});
+			console.error("Error updating image in HTML:", error);
 			return htmlContent;
 		}
 	}
@@ -325,7 +304,11 @@ export class FileUpdateService {
 
 			// Process each image
 			images.forEach((image) => {
-				updatedHtml = this.updateImageInHtml(updatedHtml, image, loTitle);
+				const needsVisualDesc = image.needsVisualDescription === true; // Explicitly check for true
+				updatedHtml = this.updateImageInHtml(updatedHtml, {
+					...image,
+					needsVisualDesc, // Pass the correct boolean value
+				});
 			});
 
 			// Save the updated HTML content
@@ -346,6 +329,51 @@ export class FileUpdateService {
 			this.results.errors.push({
 				error: error.message,
 			});
+		}
+	}
+
+	async updateLOFile(projectPath, loTitle, images) {
+		try {
+			// Construct the path to the LO's HTML file
+			const loPath = `dev/${projectPath}/${loTitle}/index.html`.replace(
+				/\/+/g,
+				"/"
+			);
+			console.log("Updating LO file:", { loPath, imageCount: images.length });
+
+			// Fetch the current HTML content
+			const htmlContent = await this.fetchHtmlContent(loPath);
+			if (!htmlContent) {
+				throw new Error("Failed to fetch HTML content");
+			}
+
+			// Update the HTML content with new image data
+			let updatedHtml = htmlContent;
+			let contentChanged = false;
+
+			for (const image of images) {
+				const beforeUpdate = updatedHtml;
+				updatedHtml = this.updateImageInHtml(updatedHtml, image, loTitle);
+
+				// Check if this image update changed the content
+				if (beforeUpdate !== updatedHtml) {
+					contentChanged = true;
+					console.log(`Content changed after updating ${image.imageSource}`);
+				}
+			}
+
+			// Only save if content actually changed
+			if (contentChanged) {
+				console.log(`Saving updated content for ${loTitle}`);
+				await this.saveHtmlContent(loPath, updatedHtml);
+				return true;
+			} else {
+				console.log(`No changes needed for ${loTitle}`);
+				return false;
+			}
+		} catch (error) {
+			console.error(`Error updating LO file ${loTitle}:`, error);
+			throw error;
 		}
 	}
 }

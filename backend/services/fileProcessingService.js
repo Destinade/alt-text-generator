@@ -84,18 +84,40 @@ export class FileProcessingService {
 				};
 			}
 
-			// Update files with new alt text
-			console.log("Starting file updates with:", {
+			// Add debug logging before file updates
+			console.log("Starting file updates with detailed data:", {
 				metadata: standardizedData.metadata,
 				altTextCount: standardizedData.altTextData.length,
+				sampleData: standardizedData.altTextData[0], // Log first item for debugging
 			});
 
-			const updateResults = await this.fileUpdater.updateFiles(
-				standardizedData.metadata,
-				standardizedData.altTextData
+			// Ensure the fileUpdater has the correct path
+			const projectPath = standardizedData.metadata.relativeLink.replace(
+				/^\/+|\/+$/g,
+				""
 			);
 
-			console.log("File update results:", updateResults);
+			const updateResults = await this.fileUpdater.updateFiles(
+				{
+					...standardizedData.metadata,
+					projectPath, // Add explicit project path
+				},
+				standardizedData.altTextData.map((item) => ({
+					...item,
+					// Ensure paths are properly formatted
+					imageSource: item.imageSource.startsWith("/")
+						? item.imageSource
+						: `/${item.imageSource}`,
+					loTitle: item.loTitle.trim(),
+				}))
+			);
+
+			// Add debug logging after updates
+			console.log("File update completion status:", {
+				success: updateResults.success,
+				filesProcessed: updateResults.filesProcessed,
+				updatedFiles: updateResults.updatedFiles,
+			});
 
 			return {
 				success: updateResults.success,
@@ -111,7 +133,7 @@ export class FileProcessingService {
 			};
 		} catch (error) {
 			console.error("Error in processFile:", error);
-			throw new Error(`Failed to process file: ${error.message}`);
+			throw error;
 		}
 	}
 }
